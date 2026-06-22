@@ -1319,6 +1319,10 @@ with tab_car:
     _tire_w = hc2.number_input("Tire width mm", value=205.0, min_value=80.0,
                                max_value=320.0, step=10.0, key="car3d_tirew")
     _show_floor = hc3.checkbox("Ground", value=True, key="car3d_floor")
+    _clean_buggy = hc3.checkbox(
+        "Clean buggy", value=True, key="car3d_clean",
+        help="Show a clean, presentation-ready Baja buggy with a fixed cage "
+             "instead of the live geometry-driven model.")
     if hc4.button("Reset zoom", key="car3d_resetzoom",
                   help="Pull the camera back out to the whole-car view."):
         st.session_state.pop("car3d_focus", None)
@@ -2311,19 +2315,25 @@ with tab_car:
               # Back-compat with any single-draw-name parts.
               if _p.get("replaces_drawname"):
                   _suppress_parts.add(_p["replaces_drawname"])
-          _fig_car = fullcar_mod.build_full_car_figure(
-              vp=_vp_car, ledger=_led_car, topology_label=_topo_lbl,
-              show_tires=_show_tires, show_brakes=_show_brakes,
-              show_aero=_show_aero, show_cooling=_show_cool,
-              show_powertrain=_show_pt, show_electrics=_show_el,
-              show_bodywork=_show_body, show_floor=_show_floor,
-              highlight_subsystem=_focus,
-              focus_subsystem=_focus, tire_width_mm=float(_tire_w),
-              part_overrides=_part_overrides,
-              custom_parts=st.session_state.get("car3d_custom_parts", []),
-              suppress_subsystems=_suppress,
-              suppress_parts=_suppress_parts,
-              **_car_kwargs)
+          if st.session_state.get("car3d_clean", True):
+              # Clean, presentation-ready buggy with a fixed cage — always
+              # reads as the right vehicle regardless of geometry.
+              _fig_car = fullcar_mod.build_dummy_baja_figure(
+                  tire_width_mm=float(_tire_w))
+          else:
+              _fig_car = fullcar_mod.build_full_car_figure(
+                  vp=_vp_car, ledger=_led_car, topology_label=_topo_lbl,
+                  show_tires=_show_tires, show_brakes=_show_brakes,
+                  show_aero=_show_aero, show_cooling=_show_cool,
+                  show_powertrain=_show_pt, show_electrics=_show_el,
+                  show_bodywork=_show_body, show_floor=_show_floor,
+                  highlight_subsystem=_focus,
+                  focus_subsystem=_focus, tire_width_mm=float(_tire_w),
+                  part_overrides=_part_overrides,
+                  custom_parts=st.session_state.get("car3d_custom_parts", []),
+                  suppress_subsystems=_suppress,
+                  suppress_parts=_suppress_parts,
+                  **_car_kwargs)
           # Stash the actual drawn part boxes so the CAD form (which runs before
           # this build) can fit a part to its REAL placeholder, not the rough
           # anchor. Read from the prior run; refreshes whenever the car redraws.

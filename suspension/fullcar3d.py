@@ -1893,3 +1893,213 @@ def part_anchor(vp, part_key: str, ledger=None) -> dict:
     """Canonical (centre + size + shape) box for a catalog part, in car SAE mm."""
     return suggest_part_geometry_for(vp, part_key, ledger=ledger)
 
+
+
+# =========================================================================== #
+#  DUMMY BAJA CAR — a clean, fixed, good-looking buggy
+#
+#  This renderer is deliberately NOT driven by suspension geometry. It draws a
+#  hand-tuned Baja SAE buggy with solid thick tubes, exactly four wheels, a tall
+#  roll cage, long raked coilovers and an open cockpit — so it always reads as
+#  the right vehicle regardless of the hardpoints. Use it for presentation /
+#  demo when you want a guaranteed-clean silhouette rather than the live,
+#  geometry-accurate model from build_full_car_figure().
+#
+#  Coordinates are SAE car axes in millimetres: x +forward, y +right, z +up,
+#  ground at z=0.
+# =========================================================================== #
+_DUMMY_COLORS = dict(
+    frame="#cfd6dd",      # bright bare-metal tube so the cage reads clearly
+    hoop="#e2e7ec",       # main hoops a touch brighter
+    tire="#15171a",       # near-black knobby tire
+    rim="#6e7681",        # wheel rim/hub
+    shock="#ff8c1a",      # orange coilover spring
+    shock_body="#3a3f45", # damper body
+    seat="#23262b",
+    helmet="#e9edf1",
+    helmet_band="#d63a2f",
+    engine="#2a2d31",
+    floor_panel="#1a1d21",
+)
+
+
+def build_dummy_baja_figure(height=560, tire_width_mm=190.0):
+    """A clean fixed-geometry Baja buggy. Returns a Plotly figure."""
+    fig = go.Figure()
+
+    def add_mesh(v, i, j, k, color, name, op=1.0):
+        fig.add_trace(go.Mesh3d(
+            x=v[:, 0], y=v[:, 1], z=v[:, 2], i=i, j=j, k=k,
+            color=color, opacity=op, name=name, hoverinfo="name",
+            flatshading=True, showscale=False, lighting=dict(
+                ambient=0.55, diffuse=0.8, specular=0.15, roughness=0.7),
+            lightposition=dict(x=1500, y=-1200, z=2500)))
+
+    def tube(p0, p1, r, color, name="Frame tube"):
+        v, i, j, k = _tube(np.asarray(p0, float), np.asarray(p1, float), r, n=12)
+        add_mesh(v, i, j, k, color, name)
+
+    def swept(points, r, color, name):
+        v, i, j, k = _swept_tube([list(p) for p in points], r, n=12)
+        add_mesh(v, i, j, k, color, name)
+
+    def node(p, r, color="#cfd6dd"):
+        v, i, j, k = _sphere(np.asarray(p, float), r, n=12)
+        add_mesh(v, i, j, k, color, "Frame node")
+
+    # ---- Fixed buggy dimensions (mm) -------------------------------------- #
+    WB = 1560.0                      # wheelbase
+    TRACK = 1320.0                   # track width
+    x_f, x_r = WB / 2, -WB / 2       # front / rear axle x
+    hw = 300.0                       # half-width of the cockpit frame
+    nose_w = 200.0                   # frame narrows at the nose
+    tire_r = 280.0                   # tall knobby tire
+    z0 = 150.0                       # lower frame rail height
+    z_mid = 470.0                    # mid / shoulder height
+    hoop_z = 1180.0                  # TOP of the main hoop (tall cage)
+    fhoop_z = 1050.0                 # top of the front hoop
+    R = 26.0                         # main tube radius (solid, chunky)
+    Rs = 21.0                        # secondary tube radius
+
+    half = TRACK / 2
+
+    # ---- Four wheels at the corners (exactly four) ------------------------ #
+    def wheel(xc, yc):
+        wc = np.array([xc, yc, tire_r])
+        axis = np.array([0.0, 1.0, 0.0])         # wheels upright, no camber
+        tv, ti, tj, tk = _cylinder(wc, axis, tire_r, tire_width_mm, n=34)
+        add_mesh(tv, ti, tj, tk, _DUMMY_COLORS["tire"], "Tire", op=1.0)
+        rv, ri, rj, rk = _cylinder(wc, axis, tire_r * 0.55, tire_width_mm * 1.04,
+                                   n=26)
+        add_mesh(rv, ri, rj, rk, _DUMMY_COLORS["rim"], "Wheel rim", op=1.0)
+
+    for xc in (x_f, x_r):
+        for yc in (-half, half):
+            wheel(xc, yc)
+
+    # ---- Lower frame rails: nose -> front -> rear -> tail ------------------ #
+    nose_x = x_f + 360.0
+    fb_x = x_f - 60.0       # front bulkhead / dash base
+    seat_x = -120.0         # main hoop base (behind seat, mid car)
+    eng_x = x_r + 220.0     # engine bay
+    tail_x = x_r - 120.0
+
+    for sgn in (-1, 1):
+        y = sgn * hw
+        yn = sgn * nose_w
+        # kicked-up nose rail
+        tube([nose_x, yn, z0 + 90], [fb_x, y, z0], R, _DUMMY_COLORS["frame"],
+             "Tubular space frame (4130)")
+        tube([fb_x, y, z0], [seat_x, y, z0], R, _DUMMY_COLORS["frame"])
+        tube([seat_x, y, z0], [eng_x, y, z0], R, _DUMMY_COLORS["frame"])
+        tube([eng_x, y, z0], [tail_x, sgn * hw * 0.8, z0 + 70], R,
+             _DUMMY_COLORS["frame"])
+    # lower cross members
+    tube([nose_x, -nose_w, z0 + 90], [nose_x, nose_w, z0 + 90], Rs,
+         _DUMMY_COLORS["frame"], "Front nose tube")
+    for xx in (fb_x, seat_x, eng_x):
+        tube([xx, -hw, z0], [xx, hw, z0], Rs, _DUMMY_COLORS["frame"])
+    tube([tail_x, -hw * 0.8, z0 + 70], [tail_x, hw * 0.8, z0 + 70], R,
+         _DUMMY_COLORS["frame"], "Rear cross tube")
+
+    # ---- MAIN hoop (tall, upright, slightly raked) ------------------------ #
+    main_hoop = [
+        [seat_x, -hw, z0], [seat_x, -hw, z_mid],
+        [seat_x - 40, -hw * 0.8, hoop_z * 0.97],
+        [seat_x - 55, 0, hoop_z],
+        [seat_x - 40, hw * 0.8, hoop_z * 0.97],
+        [seat_x, hw, z_mid], [seat_x, hw, z0],
+    ]
+    swept(main_hoop, R, _DUMMY_COLORS["hoop"], "Main hoop")
+
+    # ---- FRONT (A-pillar) hoop -------------------------------------------- #
+    front_hoop = [
+        [fb_x, -hw, z0], [fb_x, -hw, z_mid],
+        [fb_x - 30, -hw * 0.78, fhoop_z],
+        [fb_x - 38, 0, fhoop_z + 30],
+        [fb_x - 30, hw * 0.78, fhoop_z],
+        [fb_x, hw, z_mid], [fb_x, hw, z0],
+    ]
+    swept(front_hoop, R, _DUMMY_COLORS["frame"], "Front hoop")
+
+    # ---- Roof bars + cross tube ------------------------------------------- #
+    for sgn in (-1, 1):
+        tube([fb_x - 30, sgn * hw * 0.78, fhoop_z],
+             [seat_x - 40, sgn * hw * 0.8, hoop_z * 0.97], Rs,
+             _DUMMY_COLORS["frame"], "Roof bar")
+    tube([seat_x - 40, -hw * 0.8, hoop_z * 0.97],
+         [seat_x - 40, hw * 0.8, hoop_z * 0.97], Rs, _DUMMY_COLORS["frame"],
+         "Roof cross tube")
+    # rear braces from hoop down to tail
+    for sgn in (-1, 1):
+        tube([seat_x - 40, sgn * hw * 0.8, hoop_z * 0.6],
+             [tail_x, sgn * hw * 0.8, z0 + 70], R, _DUMMY_COLORS["frame"],
+             "Rear brace")
+    # side-impact bar (one clean bar per side)
+    for sgn in (-1, 1):
+        tube([fb_x, sgn * hw, z0 + 160], [seat_x, sgn * hw, z0 + 160], Rs,
+             _DUMMY_COLORS["frame"], "Side-impact bar")
+    # front bay diagonals to nose
+    for sgn in (-1, 1):
+        tube([fb_x, sgn * hw, z_mid], [nose_x, sgn * nose_w, z0 + 90], Rs,
+             _DUMMY_COLORS["frame"], "Nose upper rail")
+
+    # ---- Long raked coilover shocks at each corner ------------------------ #
+    def coilover(mount_x, mount_y_in, wheel_x, wheel_y):
+        top = np.array([mount_x, mount_y_in, hoop_z * 0.82])
+        bot = np.array([wheel_x, wheel_y * 0.86, tire_r * 0.55])
+        axis = bot - top
+        L = float(np.linalg.norm(axis))
+        # damper body (lower 45%)
+        bmid = top + axis * 0.72
+        bv, bi, bj, bk = _cylinder((top + bmid) / 2, (bmid - top), 24,
+                                   float(np.linalg.norm(bmid - top)), n=16)
+        add_mesh(bv, bi, bj, bk, _DUMMY_COLORS["shock_body"], "Coilover", op=1.0)
+        # spring (full length, slightly fatter)
+        sv, si, sj, sk = _cylinder((top + bot) / 2, axis, 30, L, n=16)
+        add_mesh(sv, si, sj, sk, _DUMMY_COLORS["shock"], "Coilover", op=0.92)
+
+    for sgn in (-1, 1):
+        coilover(fb_x - 30, sgn * hw * 0.6, x_f, sgn * half)   # front
+        coilover(seat_x - 30, sgn * hw * 0.6, x_r, sgn * half)  # rear
+
+    # ---- Simple A-arms at each corner (visual suspension) ----------------- #
+    for xc in (x_f, x_r):
+        for sgn in (-1, 1):
+            inb_u = np.array([xc - 120, sgn * hw, z_mid])
+            inb_l = np.array([xc + 120, sgn * hw, z0])
+            outb = np.array([xc, sgn * (half - 70), tire_r])
+            tube(inb_u, outb, 14, _DUMMY_COLORS["rim"], "Upper wishbone")
+            tube(inb_l, outb, 14, _DUMMY_COLORS["rim"], "Lower wishbone")
+
+    # ---- Engine block at the rear ----------------------------------------- #
+    ev, ei, ej, ek = _box(eng_x - 60, 0, z0 + 150, 360, 360, 300)
+    add_mesh(ev, ei, ej, ek, _DUMMY_COLORS["engine"], "Engine + CVT", op=1.0)
+
+    # ---- Seat + driver helmet seated in the cockpit ----------------------- #
+    cockpit_x = (fb_x + seat_x) / 2
+    sv, si, sj, sk = _box(seat_x + 40, 0, z0 + 230, 50, hw * 1.5, 360)
+    add_mesh(sv, si, sj, sk, _DUMMY_COLORS["seat"], "Seat", op=0.9)
+    helmet = np.array([cockpit_x, 0, z0 + 470])
+    hv, hi, hj, hk = _sphere(helmet, 150, n=18)
+    add_mesh(hv, hi, hj, hk, _DUMMY_COLORS["helmet"], "Driver", op=1.0)
+
+    # ---- Scene styling (matches the live model) --------------------------- #
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        dragmode="turntable",
+        showlegend=False,
+        scene=dict(
+            xaxis=dict(title="x (rear ←→ front)", backgroundcolor="#0e1216",
+                       gridcolor="#1d242c", color="#8d99a6"),
+            yaxis=dict(title="y (right)", backgroundcolor="#0e1216",
+                       gridcolor="#1d242c", color="#8d99a6"),
+            zaxis=dict(title="z (up)", backgroundcolor="#0e1216",
+                       gridcolor="#1d242c", color="#8d99a6"),
+            aspectmode="data",
+            camera=dict(eye=dict(x=1.5, y=-1.7, z=0.6),
+                        center=dict(x=0, y=0, z=-0.05)),
+            dragmode="turntable"),
+        font=dict(family="JetBrains Mono", color="#cdd6df", size=10),
+        height=height, margin=dict(l=0, r=0, t=10, b=0))
+    return fig
