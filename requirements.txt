@@ -1,0 +1,29 @@
+# Elbee Racing Baja studio — rebased from KinematiK by Frederik Thio (MIT).
+
+# Elbee Racing Baja — Python dependencies for the Streamlit deployment.
+#
+# Why this file exists: Streamlit Cloud only installs `streamlit` plus whatever is
+# listed here. With no requirements file the app crashes at startup with a redacted
+# ImportError on `from suspension import (...)`, because importing the `suspension`
+# package immediately pulls in scipy (kinematics.py), trimesh (chassis.py /
+# integration.py) and the app also imports plotly — none of which are in the base
+# image. Listing them fixes the boot.
+#
+# Place this file at the REPOSITORY ROOT (next to the folder that holds
+# streamlit_app.py), which is where Streamlit Cloud looks for it.
+
+# --- core: imported at package-init time; the app will NOT start without these ---
+streamlit>=1.49,<2
+numpy>=1.26
+scipy>=1.11
+plotly>=5.18
+trimesh>=4.0
+
+# --- optional features: imported lazily, only when the feature is used ---
+# The app boots fine without these; each one just unlocks its feature.
+cascadio>=0.0.16   # STEP/STP chassis import            (chassis.py, integration.py)
+fast_simplification>=0.1   # faster CAD-part decimation for the 3D model (optional;
+                           # falls back to built-in vertex clustering if absent)
+rtree>=1.0         # chassis/part collision queries via trimesh.proximity
+reportlab>=4.0     # PDF design-handover export         (project.py: render_pdf)
+# supabase>=2.0    # cloud sync — DISABLED in this standalone demo build
