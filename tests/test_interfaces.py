@@ -1,6 +1,6 @@
 # ============================================================================
-#  Elbee Racing — Baja SAE suspension & vehicle-dynamics studio.
-#  Rebased for Elbee Racing from KinematiK by Frederik Thio (FSAE-EV, MIT).
+#  KinematiK Baja — Baja SAE suspension & vehicle-dynamics studio.
+#  Baja edition of KinematiK by Frederik Thio (FSAE-EV, MIT).
 #  Original engine © 2026 Frederik Thio; Baja rebase retains the MIT license.
 # ============================================================================
 
@@ -282,8 +282,8 @@ def test_build_interface_markdown_contains_key_sections():
                                cg_z_mm=300, downforce_n_at_v=(600, 15),
                                rationale="skidpad balance", owner="Dana",
                                is_estimate=False))
-    md = I.build_interface_markdown(led, team_name="Elbee", season="2026")
-    assert "# Elbee — Subsystem Interface Contract" in md
+    md = I.build_interface_markdown(led, team_name="KinematiK Baja", season="2026")
+    assert "# KinematiK Baja — Subsystem Interface Contract" in md
     assert "Car-level budgets" in md
     assert "Combined mass" in md
     assert "Subsystem interfaces" in md
