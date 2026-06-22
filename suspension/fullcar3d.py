@@ -883,9 +883,9 @@ def build_full_car_figure(
     #  tub_w / tub_top / tub_bot / cz / hzz are still computed here because the
     #  cooling/powertrain/electrics sections downstream place bodies relative to
     #  the cockpit box.
-    tub_w = _clamp(min(inner_y_f, inner_y_r) * 1.25, 180, 360)
+    tub_w = _clamp(min(inner_y_f, inner_y_r) * 1.05, 200, 420)
     tub_bot = max(z_lo * 0.5, tire_r * 0.16)
-    tub_top = tub_bot + _clamp(tire_r * 1.15, 220, 420)
+    tub_top = tub_bot + _clamp(tire_r * 1.35, 280, 520)
     cz = (tub_top + tub_bot) / 2
     hzz = (tub_top - tub_bot) / 2
     if show_bodywork:
@@ -896,15 +896,21 @@ def build_full_car_figure(
         if _g(ch_it, "mass_kg"):
             hv += " · %.1f kg" % _g(ch_it, "mass_kg")
 
-        # Longitudinal stations of the frame (front nose -> rear engine bay).
-        nose_x = x_front + tire_r * 1.55         # front nose node (ahead of axle)
-        fb_x = x_front + tire_r * 0.55           # front bulkhead (feet/dash base)
-        dash_x = x_front - wb * 0.04             # front (A-pillar) hoop
-        seat_x = x_front - wb * 0.32             # main hoop (behind seat)
-        eng_x = x_rear - tire_r * 0.30           # engine-bay cross node
-        rear_x = x_rear + tire_r * 0.15          # rear frame node
+        # Longitudinal stations anchored to the ACTUAL axle positions so the
+        # cage spans the whole wheelbase (front axle -> rear axle), with the
+        # cockpit in the middle — not collapsed into a tiny central box.
+        # lerp(0)=rear axle, lerp(1)=front axle.
+        span = x_front - x_rear
+        def lerp(t):
+            return x_rear + span * t
+        nose_x = x_front + abs(span) * 0.10     # nose node just ahead of front axle
+        fb_x = lerp(0.82)                        # front bulkhead (feet/dash base)
+        dash_x = lerp(0.66)                      # front (A-pillar) hoop
+        seat_x = lerp(0.40)                      # main hoop (behind seat)
+        eng_x = lerp(0.16)                       # engine-bay cross node
+        rear_x = x_rear - abs(span) * 0.06       # rear frame node, at rear axle
         hw = tub_w                               # half-width of the cockpit frame
-        nose_w = hw * 0.62                       # the nose narrows toward the front
+        nose_w = hw * 0.66                       # the nose narrows toward the front
         z0 = tub_bot                             # lower rail height
         z1 = tub_top                             # upper rail / hoop shoulder
 
