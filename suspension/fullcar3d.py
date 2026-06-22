@@ -1909,17 +1909,17 @@ def part_anchor(vp, part_key: str, ledger=None) -> dict:
 #  ground at z=0.
 # =========================================================================== #
 _DUMMY_COLORS = dict(
-    frame="#cfd6dd",      # bright bare-metal tube so the cage reads clearly
-    hoop="#e2e7ec",       # main hoops a touch brighter
-    tire="#15171a",       # near-black knobby tire
-    rim="#6e7681",        # wheel rim/hub
+    frame="#454b53",      # dark gunmetal — reads as the photo's black tube but visible
+    hoop="#565d66",       # main hoops a touch lighter so they catch the eye
+    tire="#101113",       # near-black knobby tire
+    rim="#8a929c",        # bright machined rim/hub
     shock="#ff8c1a",      # orange coilover spring
-    shock_body="#3a3f45", # damper body
-    seat="#23262b",
-    helmet="#e9edf1",
-    helmet_band="#d63a2f",
-    engine="#2a2d31",
-    floor_panel="#1a1d21",
+    shock_body="#23262a", # dark damper body
+    seat="#1c1f23",
+    helmet="#edc21f",     # yellow helmet, like the photo
+    helmet_band="#1a1a1a",
+    engine="#26292d",
+    floor_panel="#15181b",
 )
 
 
@@ -1947,19 +1947,19 @@ def build_dummy_baja_figure(height=560, tire_width_mm=190.0):
         v, i, j, k = _sphere(np.asarray(p, float), r, n=12)
         add_mesh(v, i, j, k, color, "Frame node")
 
-    # ---- Fixed buggy dimensions (mm) -------------------------------------- #
-    WB = 1560.0                      # wheelbase
-    TRACK = 1320.0                   # track width
+    # ---- Fixed buggy dimensions (mm) — wide, low, long stance ------------- #
+    WB = 1850.0                      # longer wheelbase (low & long like the photo)
+    TRACK = 1560.0                   # wide track — the car is wider than it is tall
     x_f, x_r = WB / 2, -WB / 2       # front / rear axle x
-    hw = 300.0                       # half-width of the cockpit frame
-    nose_w = 200.0                   # frame narrows at the nose
-    tire_r = 280.0                   # tall knobby tire
-    z0 = 150.0                       # lower frame rail height
-    z_mid = 470.0                    # mid / shoulder height
-    hoop_z = 1180.0                  # TOP of the main hoop (tall cage)
-    fhoop_z = 1050.0                 # top of the front hoop
-    R = 26.0                         # main tube radius (solid, chunky)
-    Rs = 21.0                        # secondary tube radius
+    hw = 320.0                       # half-width of the cockpit frame
+    nose_w = 240.0                   # frame stays fairly wide out to the nose
+    tire_r = 300.0                   # big meaty knobby tire
+    z0 = 140.0                       # lower frame rail height (sits low)
+    z_mid = 430.0                    # mid / shoulder height
+    hoop_z = 980.0                   # TOP of main hoop — lower cage, wider look
+    fhoop_z = 760.0                  # front hoop lower than main (raked screen)
+    R = 28.0                         # main tube radius (solid, chunky)
+    Rs = 22.0                        # secondary tube radius
 
     half = TRACK / 2
 
@@ -1978,11 +1978,11 @@ def build_dummy_baja_figure(height=560, tire_width_mm=190.0):
             wheel(xc, yc)
 
     # ---- Lower frame rails: nose -> front -> rear -> tail ------------------ #
-    nose_x = x_f + 360.0
-    fb_x = x_f - 60.0       # front bulkhead / dash base
-    seat_x = -120.0         # main hoop base (behind seat, mid car)
-    eng_x = x_r + 220.0     # engine bay
-    tail_x = x_r - 120.0
+    nose_x = x_f + 300.0    # long low nose reaching out past the front axle
+    fb_x = x_f - 260.0      # front bulkhead / dash base (cockpit set back)
+    seat_x = -360.0         # main hoop base, set well back behind the driver
+    eng_x = x_r + 240.0     # engine bay
+    tail_x = x_r - 80.0
 
     for sgn in (-1, 1):
         y = sgn * hw
