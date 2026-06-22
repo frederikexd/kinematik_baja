@@ -662,6 +662,308 @@ def build_handover_markdown(store: ProjectStore,
     return "\n".join(L)
 
 
+# --------------------------------------------------------------------------- #
+#  SAAD per-subsystem documentation
+#
+#  Competition teams (e.g. CSULB) document each part in a "Standard Archived and
+#  Accurate Documentation" (SAAD) format: a cover sheet with a WW-XYY-ZZZ part
+#  number, a three-phase table of contents, and a fixed set of prompted sections
+#  per phase. This produces ONE such document per subsystem, pre-filling the
+#  cover table, weight budget, and any logged design decisions for that subteam,
+#  and leaving the standard section prompts in place for the team to answer in
+#  paragraph form (deleting the prompts as they go, per the template's
+#  instructions). One document per subsystem keeps Elbee's docs drawer matching
+#  the format the strongest Baja programs archive in.
+# --------------------------------------------------------------------------- #
+
+# Subsystem numeric ID for the WW-XYY-ZZZ part number (the "X" digit / "YY"
+# subcategory live in the "XYY" field). These match the standard Baja subsystem
+# identification scheme: 000 Data Acq, 100 Brakes, 200 Chassis/Ergo, 300
+# Drivetrain, 400 Front Suspension, 500 Rear Suspension.
+SAAD_SUBSYSTEM_IDS = {
+    "data-acquisition": "000",
+    "chassis":          "200",
+    "drivetrain":       "300",
+    "front-suspension": "400",
+    "rear-suspension":  "500",
+}
+
+# The club objectives every section is asked to correlate against.
+SAAD_CLUB_OBJECTIVES = [
+    "Meet Rule Requirements", "Serviceability", "Manufacturability",
+    "Vehicle Integration", "Cost", "Performance",
+]
+
+
+def saad_part_number(team_key: str, season: str, subcategory: str = "00",
+                     id_number: str = "000") -> str:
+    """Build a WW-XYY-ZZZ part number.
+
+    WW  = last two digits of the competition year (from the season string)
+    X   = subsystem identification digit (first digit of the subsystem ID)
+    YY  = subcategory within subsystem (caller-supplied, default "00")
+    ZZZ = ID number (caller-supplied, default "000")
+    """
+    sid = SAAD_SUBSYSTEM_IDS.get(team_key, "900")  # 900 = unmapped/other
+    ww = "".join(ch for ch in str(season) if ch.isdigit())[-2:] or "26"
+    x = sid[0]
+    yy = (str(subcategory) + "00")[:2]
+    zzz = (str(id_number) + "000")[:3]
+    return f"{ww}-{x}{yy}-{zzz}"
+
+
+def build_saad_markdown(store: ProjectStore, team_key: str,
+                        team_label: str | None = None,
+                        geometry: dict | None = None,
+                        component_name: str = "Name Of Component",
+                        subsystem_lead: str = "",
+                        team_members: str = "") -> str:
+    """
+    Assemble a single subsystem's documentation in the SAAD template format:
+    cover sheet, three-phase table of contents, and the standard prompted
+    sections for each phase. Any design decisions / weights logged for this
+    subteam are pre-filled so the document starts from the team's real data
+    rather than a blank page; the section prompts remain so the subteam can
+    answer them in paragraph form and delete the prompts as instructed.
+    """
+    label = team_label or team_key
+    today = _dt.date.today().isoformat()
+    part_no = saad_part_number(team_key, store.season)
+
+    # Decisions logged against this subteam — the real content to seed sections.
+    team_decisions = sorted(
+        [d for d in store.decisions if d.team == team_key],
+        key=lambda x: x.date)
+    team_weights = [w for w in store.weights if w.team == team_key]
+    team_mass_kg = sum(w.total_g for w in team_weights) / 1000.0
+    open_notes = [n for n in store.notes
+                  if n.status == "open" and n.to_team in (team_key, "all")]
+
+    L: list[str] = []
+
+    # ---- Cover sheet ------------------------------------------------------- #
+    L.append(f"# {label}")
+    L.append("_Society of Automotive Engineers · Elbee Racing Baja_")
+    L.append("_Standard Archived and Accurate Documentation (SAAD)_")
+    L.append(f"_Season {store.season} · generated {today}_\n")
+
+    L.append("| Field | Value |")
+    L.append("|---|---|")
+    L.append(f"| Part Number | {part_no} |")
+    L.append(f"| Component | {component_name} |")
+    L.append(f"| Subsystem | {label} |")
+    L.append(f"| Subsystem Lead | {subsystem_lead or '—'} |")
+    L.append(f"| Team Members | {team_members or '—'} |")
+    L.append("")
+    L.append("_Update this document throughout development, not just at the end. "
+             "Date each update. Answer the prompts in paragraph form and delete "
+             "the prompts once answered._\n")
+
+    # ---- Table of contents ------------------------------------------------- #
+    L.append("## Table of Contents\n")
+    L.append("**Phase 1: Problem Identification & Concept Development (R&D)** — "
+             "Introduction; Background & Previous Problems; Objectives & "
+             "Constraints; Design Requirements & Rules; Proposed Improvements; "
+             "Implementation Plan; Impact & Benefits; Vehicle Integration; "
+             "Timeframe; Results; References.")
+    L.append("**Phase 2: Design and Analysis** — CAD Design; FEA Analysis; "
+             "Manufacturing.")
+    L.append("**Phase 3: Testing, Evaluation, Validation, and Iteration** — "
+             "Testing & Validation; Trade-offs & Performance Evaluation; Future "
+             "Improvements; Next Steps.\n")
+
+    L.append("**Club objectives** (correlate each section to these): "
+             + "; ".join(SAAD_CLUB_OBJECTIVES) + ".\n")
+
+    # Helper: emit a section heading + its prompts, plus any seeded data.
+    def section(title: str, prompts: list[str], seed: list[str] | None = None):
+        L.append(f"### {title}")
+        L.append("_Planned: MM/DD/YY–MM/DD/YY · Actual: MM/DD/YY–MM/DD/YY_\n")
+        if seed:
+            L.extend(seed)
+            L.append("")
+        for p in prompts:
+            L.append(f"- {p}")
+        L.append("")
+
+    # ---- Phase 1 ----------------------------------------------------------- #
+    L.append("## Phase 1: Problem Identification & Concept Development (R&D)\n")
+
+    section("Introduction", [
+        "Define the subsystem or vehicle component being researched.",
+        "Outline component objectives and the problems to address, correlating "
+        "these to the club objectives.",
+    ], seed=[f"This document covers the **{label}** subsystem of the Elbee "
+             f"Racing Baja vehicle (part number {part_no})."])
+
+    bg_seed = None
+    if team_decisions:
+        bg_seed = ["_Prior design decisions logged for this subsystem:_"]
+        for d in team_decisions:
+            part = f" ({d.part})" if d.part else ""
+            bg_seed.append(f"- **{d.title}**{part} — {d.date}: {d.rationale}")
+    section("Background & Previous Problems", [
+        "Describe the current designs, components, or configurations on the Baja vehicle.",
+        "Give the reasoning behind previous design decisions (cost, "
+        "manufacturability, time).",
+        "What improvements or changes are you aiming to achieve?",
+        "What challenges or problems resulted from previous design decisions?",
+        "Competitive benchmarking: what are other teams or industry leaders "
+        "doing differently? Cite who and why.",
+        "Use annotated images of current designs and competitor solutions.",
+    ], seed=bg_seed)
+
+    section("Objectives & Constraints", [
+        "State what you aim to analyze, test, investigate, or improve.",
+        "List project objectives and constraints in logical order.",
+        "Quantify all new research.",
+    ])
+
+    section("Design Requirements & Rules", [
+        "Define quantifiable performance metrics from previous designs.",
+        "List relevant constraints and rules, citing rule sections directly, "
+        "and why each pertains to this topic.",
+        "Define expected loads and how they are accounted for in the design.",
+    ])
+
+    section("Proposed Improvements", [
+        "Brainstorm and describe potential innovations or modifications in detail.",
+        "Evaluate trade-offs in cost, weight, and performance, with predicted results.",
+        "Support proposals with data-driven methods (simulations, prior testing).",
+        "Rank innovations by measurable benchmarks (feasibility, cost-benefit, impact).",
+    ])
+
+    section("Implementation Plan", [
+        "Explain how the objectives and constraints will be achieved.",
+        "List required resources (software, materials, tools); confirm club "
+        "access or propose alternatives.",
+        "Identify challenges (supply chain, software limits) and collaboration "
+        "opportunities with other subsystems.",
+        "Weigh in-house fabrication vs outsourcing against the shared, limited budget.",
+    ])
+
+    impact_seed = None
+    if team_weights:
+        impact_seed = [f"_Current logged mass for {label}: "
+                       f"**{team_mass_kg:.2f} kg** across {len(team_weights)} "
+                       f"part(s)._"]
+    section("Impact & Benefits", [
+        "Explain the importance of the research and expected benefits.",
+        "Highlight how the changes address current issues with the vehicle.",
+        "Provide measurable goals for testing and performance improvement.",
+    ], seed=impact_seed)
+
+    vi_seed = None
+    if open_notes:
+        vi_seed = ["_Open cross-subsystem interface items affecting this subsystem:_"]
+        for n in sorted(open_notes, key=lambda x: x.ts):
+            u = " **[urgent]**" if n.urgent else ""
+            vi_seed.append(f"- From {n.from_team}: {n.message}{u}")
+    section("Vehicle Integration", [
+        "Identify how changes here could affect other subsystems "
+        "(e.g. suspension arm changes → chassis mounting tabs).",
+        "Determine whether the changes require adjustments to other components.",
+    ], seed=vi_seed)
+
+    section("Timeframe", [
+        "Outline a timeline with key phases and milestones "
+        "(Phase 1 R&D; Phase 2 Design & Analysis; Phase 3 Testing & Iteration).",
+    ])
+
+    section("Results", [
+        "Summarize research findings and assess feasibility for implementation.",
+        "Highlight key insights, next steps, and areas for further research.",
+        "Quantify the benefits and how they enhance previous designs.",
+        "Align with club objectives; outline how subsystem performance will be "
+        "measured in testing or competition.",
+        "State whether the component needs a complete redesign or the extent of "
+        "modification.",
+    ])
+
+    section("References", [
+        "List all references cited (videos, papers, websites, etc.).",
+    ])
+
+    # ---- Phase 2 ----------------------------------------------------------- #
+    L.append("## Phase 2: Design and Analysis\n")
+
+    geo_seed = None
+    if geometry:
+        geo_seed = ["_Current design state captured from the studio:_"]
+        for k, v in geometry.items():
+            if isinstance(v, float):
+                geo_seed.append(f"- {k}: {v:.2f}")
+            else:
+                geo_seed.append(f"- {k}: {v}")
+    section("CAD Design", [
+        "How did the design evolve during this phase?",
+        "What tools and references developed the CAD model?",
+        "What is the design intent, and how does the design fulfil the Phase 1 "
+        "engineering requirements?",
+    ], seed=geo_seed)
+
+    section("FEA Analysis", [
+        "How was the FEA set up to validate the design?",
+        "What boundary conditions were applied, and why (fixed points, forces, loads)?",
+        "What are the results; why do they make sense; how do they align with "
+        "engineering principles (stress distribution, safety factors)?",
+        "Were results consistent with expectations? If not, what changed and why?",
+    ])
+
+    section("Manufacturing", [
+        "How feasible is this design to manufacture?",
+        "What manufacturing methods were considered and chosen, and why?",
+        "What challenges arose during manufacturing and how were they resolved?",
+        "What is the order of operations?",
+        "Include CAD models, FEA screenshots, and photos of manufacturing.",
+    ])
+
+    # ---- Phase 3 ----------------------------------------------------------- #
+    L.append("## Phase 3: Testing, Evaluation, Validation, and Iteration\n")
+
+    section("Testing & Validation", [
+        "How has the design been tested (physical tests, simulations)?",
+        "Do test results match the expected performance from FEA and CAD?",
+        "Were additional adjustments or redesigns needed based on testing?",
+    ])
+
+    section("Trade-offs & Performance Evaluation", [
+        "Key benefits of the current design (performance, weight, etc.).",
+        "Potential flaws or drawbacks (complexity, cost).",
+        "Are the trade-offs worth it given the overall project goals?",
+    ])
+
+    section("Future Improvements", [
+        "What challenges remain, and what changes could further optimize the design?",
+        "What is the plan for future iterations or adjustments?",
+    ])
+
+    section("Next Steps", [
+        "What immediate actions are needed next (further testing, redesign)?",
+        "What are the key upcoming milestones in your timeline?",
+        "Include images of testing setups, results, and ongoing work.",
+    ])
+
+    L.append("---")
+    L.append(f"_SAAD document for {label} · part {part_no} · generated by the "
+             "Elbee Racing Baja suspension & integration studio. This internal "
+             "document is for final part documentation and will be printed and "
+             "stored in the shop documentation drawer once completed._")
+    return "\n".join(L)
+
+
+def build_all_saad_markdown(store: ProjectStore, team_labels: dict,
+                            geometry: dict | None = None) -> str:
+    """Concatenate a SAAD document for every subsystem into one file, page-broken."""
+    parts = []
+    for team_key, label in team_labels.items():
+        # Geometry only belongs in the suspension subsystems' design state.
+        geo = geometry if team_key in ("front-suspension", "rear-suspension") else None
+        parts.append(build_saad_markdown(store, team_key, team_label=label,
+                                         geometry=geo))
+    return "\n\n---\n\n".join(parts)
+
+
 def render_pdf(markdown_text: str, out_path: str):
     """Render the handover Markdown to a clean PDF via reportlab."""
     from reportlab.lib.pagesizes import A4

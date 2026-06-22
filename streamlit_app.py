@@ -192,6 +192,58 @@ hr{ border-color:var(--line);}
   background:var(--panel2)!important; color:var(--ink)!important; border-color:var(--line)!important;
 }
 .stFileUploader > div{ background:var(--panel2)!important; border-color:var(--line)!important; }
+
+/* --- Kill every remaining white surface --------------------------------- */
+/* Top header / toolbar bar (Share, star, edit, GitHub icons live here) */
+[data-testid="stHeader"], [data-testid="stToolbar"], .stAppHeader,
+header[data-testid="stHeader"]{
+  background:var(--bg)!important;
+  color:var(--ink)!important;
+  border-bottom:1px solid var(--line)!important;
+}
+[data-testid="stHeader"] *, [data-testid="stToolbar"] *{ color:var(--ink)!important; }
+[data-testid="stDecoration"]{ background:transparent!important; }
+[data-testid="stMainBlockContainer"], [data-testid="stAppViewContainer"]{
+  background:transparent!important; }
+
+/* Number-input stepper container + its +/- buttons (render white otherwise) */
+.stNumberInput div[data-baseweb="input"],
+.stNumberInput div[data-baseweb="input"] > div,
+[data-testid="stNumberInput"] div[data-baseweb="input"]{
+  background:var(--panel2)!important; border-color:var(--line)!important;
+}
+.stNumberInput button, [data-testid="stNumberInputStepUp"],
+[data-testid="stNumberInputStepDown"]{
+  background:var(--panel)!important; color:var(--ink)!important;
+  border-color:var(--line)!important;
+}
+.stNumberInput button:hover, [data-testid="stNumberInputStepUp"]:hover,
+[data-testid="stNumberInputStepDown"]:hover{
+  background:#1b222a!important; color:var(--amber)!important;
+}
+/* baseweb wrappers behind text/select/number inputs */
+div[data-baseweb="input"], div[data-baseweb="base-input"]{
+  background:var(--panel2)!important;
+}
+div[data-baseweb="input"] input{ background:var(--panel2)!important; color:var(--ink)!important; }
+
+/* Tab strip: dark track so the scroll edges don't flash white */
+.stTabs [data-baseweb="tab-list"]{ background:transparent!important; }
+.stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"]{
+  background:var(--amber)!important;
+}
+.stTabs [data-baseweb="tab-list"]::after{ background:transparent!important; }
+
+/* Expander, popover, menu surfaces */
+[data-testid="stExpander"] details, [data-testid="stExpander"] summary{
+  background:var(--panel)!important; color:var(--ink)!important;
+  border-color:var(--line)!important;
+}
+[data-baseweb="popover"] *, [role="listbox"], [role="option"]{
+  background:var(--panel2)!important; color:var(--ink)!important;
+}
+/* Radio / checkbox label text stays light */
+.stRadio label, .stCheckbox label{ color:var(--ink)!important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1237,7 +1289,7 @@ with tab4:
                     config={"scrollZoom": True, "displaylogo": False})
 
 # --------------------------- FULL CAR 3D ----------------------------------- #
-# A LIVE Formula car assembled from every subsystem's current declaration. The
+# A LIVE Baja buggy assembled from every subsystem's current declaration. The
 # figure is rebuilt from session state on every rerun, so the instant any tab
 # edits geometry, vehicle params, or its interface in the ledger, the body that
 # subsystem owns changes here — wings scale with downforce, sidepods with cooling
@@ -1277,10 +1329,10 @@ with tab_car:
         _show_tires = lc[0].checkbox("Tires", True, key="car3d_tires")
         _show_brakes = lc[0].checkbox("Brakes", True, key="car3d_brakes")
         _show_aero = lc[1].checkbox("Aero (off for Baja)", False, key="car3d_aero")
-        _show_cool = lc[1].checkbox("Cooling (sidepods)", True, key="car3d_cool")
+        _show_cool = lc[1].checkbox("Cooling (off for Baja)", False, key="car3d_cool")
         _show_pt = lc[2].checkbox("Powertrain", True, key="car3d_pt")
         _show_el = lc[2].checkbox("Electrics", True, key="car3d_el")
-        _show_body = lc[3].checkbox("Bodywork (monocoque/halo)", True, key="car3d_body")
+        _show_body = lc[3].checkbox("Frame (roll cage)", True, key="car3d_body")
 
     # The car renders HERE, directly under the controls. Streamlit fills a
     # container in the order it was CREATED, not called, so we reserve this slot
@@ -1509,7 +1561,7 @@ with tab_car:
                              "subsystem occupies, at true proportions. Nudge after."):
                     try:
                         # Union the actual placeholder boxes of ALL bodies this
-                        # subsystem owns (e.g. chassis = monocoque+hoop+driver), so
+                        # subsystem owns (e.g. chassis = frame+hoop+driver), so
                         # the CAD fills the real area you see, not one sub-part.
                         _pbx = st.session_state.get("car3d_part_boxes", {})
                         _dns = _cad_pick[3]
@@ -2087,8 +2139,12 @@ with tab_car:
     # engineering declarations are untouched. Keys are the parts' draw names.
     _PART_EDIT = {
         "Engine + CVT":      "drivetrain",
-        "Monocoque":         "chassis",
-        "Roll hoop":         "chassis",
+        "Frame tube":        "chassis",
+        "Main hoop":         "chassis",
+        "Front hoop":        "chassis",
+        "Rear brace":        "chassis",
+        "Front bulkhead":    "chassis",
+        "Frame node":        "chassis",
         "Driver":            "chassis",
         "Tire":              "front-suspension",
         "Brake disc":        "front-suspension",
@@ -4390,6 +4446,61 @@ with tab7:
                                   mime="application/pdf", width='stretch')
     except Exception as e:
         ec[2].markdown(f"<p class='hint'>PDF unavailable: {e}</p>", unsafe_allow_html=True)
+
+    # --------------------------------------------------------------------- #
+    #  SAAD per-subsystem documentation (the competition archive format)
+    # --------------------------------------------------------------------- #
+    st.markdown("###### Subsystem documentation (SAAD format)")
+    st.markdown(
+        '<p class="hint">One <b>Standard Archived and Accurate Documentation</b> '
+        'file per subsystem — cover sheet with a <code>WW-XYY-ZZZ</code> part '
+        'number, three-phase table of contents, and the standard prompted '
+        'sections. Logged decisions, weights and the current design state are '
+        'pre-filled; answer the prompts in paragraph form and delete them as you '
+        'go. This is the format the strongest Baja programs archive in.</p>',
+        unsafe_allow_html=True)
+
+    _team_labels = {k: v["label"] for k, v in integ_mod.TEAMS.items()}
+    sc = st.columns([2, 2, 2])
+    _saad_team = sc[0].selectbox(
+        "Subsystem", list(_team_labels.keys()),
+        format_func=lambda k: f"{project_mod.saad_part_number(k, store.season)} · {_team_labels[k]}",
+        key="saad_team")
+    _saad_component = sc[1].text_input("Component name", value="Name Of Component",
+                                       key="saad_component")
+    _saad_lead = sc[2].text_input("Subsystem lead(s)", value="", key="saad_lead")
+    _saad_members = st.text_input("Team members", value="", key="saad_members")
+
+    # Suspension subsystems carry the live geometry into their design-state seed.
+    _saad_geo = geo if _saad_team in ("front-suspension", "rear-suspension") else None
+    _saad_md = project_mod.build_saad_markdown(
+        store, _saad_team, team_label=_team_labels[_saad_team], geometry=_saad_geo,
+        component_name=_saad_component, subsystem_lead=_saad_lead,
+        team_members=_saad_members)
+    _saad_pn = project_mod.saad_part_number(_saad_team, store.season)
+
+    dc = st.columns(3)
+    dc[0].download_button(f"⬇ {_saad_pn} SAAD (.md)", _saad_md,
+                          file_name=f"SAAD_{_saad_pn}.md",
+                          mime="text/markdown", width='stretch')
+    try:
+        _saad_pdf = os.path.join(tempfile.gettempdir(), f"SAAD_{_saad_pn}.pdf")
+        project_mod.render_pdf(_saad_md, _saad_pdf)
+        with open(_saad_pdf, "rb") as f:
+            dc[1].download_button(f"⬇ {_saad_pn} SAAD (.pdf)", f.read(),
+                                  file_name=f"SAAD_{_saad_pn}.pdf",
+                                  mime="application/pdf", width='stretch')
+    except Exception as e:
+        dc[1].markdown(f"<p class='hint'>PDF unavailable: {e}</p>", unsafe_allow_html=True)
+
+    # All subsystems in one bundle.
+    _all_saad = project_mod.build_all_saad_markdown(store, _team_labels, geometry=geo)
+    dc[2].download_button("⬇ All subsystems (.md)", _all_saad,
+                          file_name="SAAD_all_subsystems.md",
+                          mime="text/markdown", width='stretch')
+
+    with st.expander(f"Preview · {_saad_pn} {_team_labels[_saad_team]}", expanded=False):
+        st.markdown(_saad_md)
 
 # ----------------------------- TAB 8 --------------------------------------- #
 with tab8:

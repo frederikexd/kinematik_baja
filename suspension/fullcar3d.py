@@ -2,7 +2,7 @@
 #  KinematiK — Formula SAE suspension & vehicle dynamics toolkit
 #  Dynamic full-vehicle 3D model (pure Python + Plotly).
 #
-#  A live Formula-style car assembled from the data every sub-team has already
+#  A live Baja-buggy (tube-frame) assembled from the data every sub-team has already
 #  entered. Edit a hardpoint, a spring rate, a wing's downforce, the battery
 #  mass — and the body that subsystem owns visibly changes here, instantly,
 #  because the figure is rebuilt from the same session state those tabs write.
@@ -11,19 +11,19 @@
 """
 WHAT THIS DRAWS
 
-A single Plotly 3D figure of an open-wheel Formula car, built from:
+A single Plotly 3D figure of an open tube-frame Baja SAE buggy, built from:
 
   * suspension geometry   (Hardpoints)          -> the four corners + tires
   * vehicle parameters    (VehicleParams)        -> wheelbase, track, CG, mass,
                                                     ride height (from spring rate)
   * the integration ledger (IntegrationLedger)   -> every other subsystem:
-        aerodynamics -> front & rear wings sized by declared downforce
-        powertrain   -> EV traction motor + inverter sized by power
+        aerodynamics -> none (Baja runs no wings; the aero body is disabled)
+        powertrain   -> single-cylinder engine + CVT + half-shafts sized by power
         cooling      -> sidepod radiator ducts sized by required airflow
-        electrics    -> accumulator / battery box sized by its envelope+mass
+        electrics    -> small 12 V battery / DAQ box sized by its envelope+mass
         brakes       -> brake discs at each corner sized by brake torque
-        chassis      -> the FSAE survival cell (pointed nose, tub, main & front
-                        roll hoops, driver helmet)
+        chassis      -> the tubular space frame (lower floor rails, cockpit bay,
+                        main & front roll hoops, side-impact bars, driver helmet)
         data-acq     -> a small logger pod (no meaningful envelope, shown small)
 
 Every body is a real triangulated mesh (Mesh3d) or line set, positioned in the
@@ -550,7 +550,7 @@ def build_full_car_figure(
     suppress_parts: set | None = None,
     height: int = 720,
 ):
-    """Assemble a live Formula-car 3D figure.
+    """Assemble a live Baja-buggy 3D figure.
 
     The suspension reflects the chosen ARCHITECTURE. Pass the corner either as:
       * a double-wishbone `Hardpoints`  (via hp_front / hp_rear), or
@@ -566,8 +566,8 @@ def build_full_car_figure(
     `part_overrides` lets the user nudge the dimensions and location of any
     drawn part without changing the underlying engineering numbers. It is a
     dict keyed by the part's display name (exactly the `name=` each body is
-    drawn with, e.g. "Front wing", "Sidepod (cooling)", "Motor + inverter",
-    "Accumulator", "Monocoque", "Tire", "Brake disc", "Roll hoop", "Driver",
+    drawn with, e.g. "Engine + CVT", "Sidepod (cooling)", "Frame tube",
+    "Main hoop", "Front hoop", "Tire", "Brake disc", "Driver",
     "Data logger", "Radiator core"). Each value is a dict with any of:
 
         dx, dy, dz : float   # translate the whole part, in mm (SAE axes)
@@ -872,105 +872,130 @@ def build_full_car_figure(
     inner_y_f = tf / 2.0 - tire_width_mm - 40
     inner_y_r = tr / 2.0 - tire_width_mm - 40
 
-    # ---- 2) chassis: FSAE monocoque + nosecone + roll hoops + driver ---- #
-    #  Reshaped to read as a real Formula Student car (cf. the reference photo):
-    #  a low, slim survival cell that tapers to a pointed nosecone at the front,
-    #  an open cockpit, a curved MAIN roll hoop behind the driver's head and a
-    #  smaller FRONT hoop ahead of the dash, plus the driver's helmet showing in
-    #  the cockpit — not an F1 halo.
-    # Defaults so aero (pylon mounts, rear-wing height) still works when the
-    # chassis body is suppressed (replaced by a CAD part).
-    tub_w = _clamp(min(inner_y_f, inner_y_r) * 1.1, 140, 320)
-    tub_top = max(z_lo * 0.5, tire_r * 0.14) + _clamp(tire_r * 0.95, 180, 360)
+    # ---- 2) chassis: Baja SAE tubular space frame (roll cage) ----------- #
+    #  Baja is an open tube-frame buggy (cf. the reference photo): a welded
+    #  4130 space frame — lower floor rails, a cockpit bay, a curved MAIN hoop
+    #  behind the driver's head, a front (A-pillar) hoop, lateral roof/floor
+    #  cross-members, diagonal side-impact (door) bars, and front/rear nodes
+    #  the suspension and engine hang off. NO body panels, NO pointed nosecone,
+    #  NO wings. The driver's helmet shows in the open cockpit.
+    #
+    #  tub_w / tub_top / tub_bot / cz / hzz are still computed here because the
+    #  cooling/powertrain/electrics sections downstream place bodies relative to
+    #  the cockpit box.
+    tub_w = _clamp(min(inner_y_f, inner_y_r) * 1.25, 180, 360)
+    tub_bot = max(z_lo * 0.5, tire_r * 0.16)
+    tub_top = tub_bot + _clamp(tire_r * 1.15, 220, 420)
+    cz = (tub_top + tub_bot) / 2
+    hzz = (tub_top - tub_bot) / 2
     if show_bodywork:
         ch_it = _iface(ledger, "chassis")
-        tub_w = _clamp(min(inner_y_f, inner_y_r) * 1.1, 140, 320)
-        # Sit the tub low like an FSAE car: floor near the ground, deck low.
-        tub_bot = max(z_lo * 0.5, tire_r * 0.14)
-        tub_top = tub_bot + _clamp(tire_r * 0.95, 180, 360)
-        cz = (tub_top + tub_bot) / 2
-        hzz = (tub_top - tub_bot) / 2
-        prof = _ellipse_ring(24)
-
-        # Lofted survival cell: pointed nose tip -> footwell -> cockpit bay ->
-        # tapered tail. Stations run front (tip) to rear.
-        nose_tip_x = x_front + tire_r * 1.9
-        tail_x = x_rear + tire_r * 0.15
-        xs = np.linspace(nose_tip_x, tail_x, 9)
-        #             tip   nose  foot  dash  cockpit cock  belly tail   end
-        widths  = np.array([0.05, 0.22, 0.55, 0.88, 1.00, 0.98, 0.86, 0.66, 0.5])
-        heights = np.array([0.10, 0.30, 0.62, 0.85, 0.92, 0.92, 0.85, 0.74, 0.6])
-        zoff    = np.array([0.55, 0.42, 0.18, 0.04, 0.00, 0.00, 0.02, 0.06, 0.1]) * hzz
-        scales = [(tub_w / 2 * w, hzz * h, 0.0, cz + dz)
-                  for w, h, dz in zip(widths, heights, zoff)]
-        mv, mi, mj, mk = _prism_xsection(prof, xs, scales)
-        hv = "Monocoque / survival cell"
+        tube_r = max(tire_r * 0.058, 12.0)        # ~25–32 mm OD frame tubing
+        node_r = tube_r * 1.25
+        hv = "Tubular space frame (4130)"
         if _g(ch_it, "mass_kg"):
             hv += " · %.1f kg" % _g(ch_it, "mass_kg")
-        mesh(mv, mi, mj, mk, COLORS["monocoque"], "Monocoque", "chassis",
-             base_op=0.92, hover=hv)
 
-        # A thin livery flash down the flank (the photo's red/yellow stripe).
-        fv, fi, fj, fk = _prism_xsection(
-            _ellipse_ring(24),
-            np.linspace(nose_tip_x - tire_r * 0.3, tail_x, 6),
-            [(tub_w / 2 * w * 1.005, hzz * h * 0.16, 0.0, cz + dz)
-             for w, h, dz in zip(widths[2:8], heights[2:8], zoff[2:8])])
-        mesh(fv, fi, fj, fk, COLORS["livery"], "Monocoque", "chassis", 0.9)
+        # Longitudinal stations of the frame (front bulkhead -> rear).
+        fb_x = x_front + tire_r * 1.30          # front bulkhead (feet)
+        dash_x = x_front - wb * 0.02            # front (dash) hoop
+        seat_x = x_front - wb * 0.30            # main hoop (behind seat)
+        rear_x = x_rear + tire_r * 0.10         # rear frame node
+        hw = tub_w                              # half-width of the frame
+        z0 = tub_bot                            # lower rail height
+        z1 = tub_top                            # upper rail / hoop shoulder
 
-        # Cockpit opening reference + driver: a helmet sphere sitting in the bay.
-        cockpit_x = x_front - wb * 0.16
-        helmet_r = tub_w * 0.34
-        helmet_z = tub_top + helmet_r * 0.65
+        def frame_tube(p0, p1, r=None, name="Frame tube", hint=None):
+            t = _tube(p0, p1, radius=(r or tube_r), n=10)
+            mesh(t[0], t[1], t[2], t[3], COLORS["frame"], name, "chassis",
+                 base_op=0.95, hover=hint)
+
+        def frame_node(p):
+            s = _sphere(p, node_r, n=12)
+            mesh(s[0], s[1], s[2], s[3], COLORS["frame"], "Frame node",
+                 "chassis", 0.96)
+
+        # Lower floor rails (left & right), front bulkhead to rear node.
+        for sgn in (-1, 1):
+            y = sgn * hw
+            frame_tube([fb_x, y, z0], [seat_x, y, z0], hint=hv)
+            frame_tube([seat_x, y, z0], [rear_x, y, z0])
+        # Lower cross-members (front, mid, rear).
+        for xx in (fb_x, seat_x, rear_x):
+            frame_tube([xx, -hw, z0], [xx, hw, z0])
+        # Upper side rails along the cockpit (dash hoop shoulder -> main hoop).
+        for sgn in (-1, 1):
+            y = sgn * hw
+            frame_tube([dash_x, y, z1 * 0.86], [seat_x, y, z1 * 0.92])
+        # Diagonal side-impact (door) bars across the cockpit opening.
+        for sgn in (-1, 1):
+            y = sgn * hw
+            frame_tube([dash_x, y, z0], [seat_x, y, z1 * 0.7], r=tube_r * 0.9)
+
+        # MAIN roll hoop: a tall curved tube arching above/behind the driver.
+        hoop_top = z1 + tire_r * 0.55
+        main_hoop = [
+            [seat_x, -hw, z0],
+            [seat_x, -hw, cz],
+            [seat_x - tire_r * 0.12, -hw * 0.6, hoop_top * 0.94],
+            [seat_x - tire_r * 0.15, 0, hoop_top],
+            [seat_x - tire_r * 0.12, hw * 0.6, hoop_top * 0.94],
+            [seat_x, hw, cz],
+            [seat_x, hw, z0],
+        ]
+        mh = _swept_tube(main_hoop, radius=tube_r, n=10)
+        mesh(mh[0], mh[1], mh[2], mh[3], COLORS["hoop"], "Main hoop",
+             "chassis", 0.96, "Main roll hoop")
+
+        # Rear bracing: main hoop shoulders down to the rear frame nodes.
+        for sgn in (-1, 1):
+            frame_tube([seat_x - tire_r * 0.12, sgn * hw * 0.6, hoop_top * 0.94],
+                       [rear_x, sgn * hw, z0], r=tube_r * 0.9,
+                       name="Rear brace")
+        # Roof cross tube tying the top of the main hoop laterally.
+        frame_tube([seat_x - tire_r * 0.15, -hw * 0.6, hoop_top * 0.94],
+                   [seat_x - tire_r * 0.15, hw * 0.6, hoop_top * 0.94],
+                   r=tube_r * 0.85)
+
+        # FRONT (dash / A-pillar) hoop, smaller, ahead of the cockpit.
+        fh_top = z1 + tire_r * 0.12
+        front_hoop = [
+            [dash_x, -hw, z0],
+            [dash_x, -hw, cz],
+            [dash_x, -hw * 0.55, fh_top],
+            [dash_x, 0, fh_top + tire_r * 0.05],
+            [dash_x, hw * 0.55, fh_top],
+            [dash_x, hw, cz],
+            [dash_x, hw, z0],
+        ]
+        fhm = _swept_tube(front_hoop, radius=tube_r * 0.92, n=9)
+        mesh(fhm[0], fhm[1], fhm[2], fhm[3], COLORS["frame"], "Front hoop",
+             "chassis", 0.95, "Front (A-pillar) hoop")
+
+        # Front-bay tubes: dash hoop forward to the front bulkhead (feet box).
+        for sgn in (-1, 1):
+            y = sgn * hw
+            frame_tube([dash_x, y, z0], [fb_x, y, z0])
+            frame_tube([dash_x, y, cz], [fb_x, y, z0 + hzz * 0.4],
+                       r=tube_r * 0.85)
+        frame_tube([fb_x, -hw, z0 + hzz * 0.4], [fb_x, hw, z0 + hzz * 0.4],
+                   r=tube_r * 0.85, name="Front bulkhead")
+        # A couple of frame nodes where the suspension picks up loads read.
+        for xx in (fb_x, dash_x, seat_x, rear_x):
+            for sgn in (-1, 1):
+                frame_node([xx, sgn * hw, z0])
+
+        # Driver: a helmet sphere seated in the open cockpit.
+        cockpit_x = (dash_x + seat_x) / 2
+        helmet_r = tub_w * 0.42
+        helmet_z = z1 + helmet_r * 0.35
         hv_e = _sphere([cockpit_x, 0, helmet_z], helmet_r, n=16)
         mesh(hv_e[0], hv_e[1], hv_e[2], hv_e[3], COLORS["helmet"],
              "Driver", "chassis", 0.98, "Driver (helmet)")
-        # Helmet stripe band.
-        bandv = _sphere([cockpit_x, 0, helmet_z], helmet_r * 1.01, n=14)
-        bv = bandv[0]
-        keep = np.abs(bv[:, 2] - helmet_z) < helmet_r * 0.18
-        if keep.any():
-            seg([cockpit_x - helmet_r, 0, helmet_z],
-                [cockpit_x + helmet_r, 0, helmet_z],
-                COLORS["helmet_band"], 6, None, "helmet", "chassis")
+        seg([cockpit_x - helmet_r, 0, helmet_z],
+            [cockpit_x + helmet_r, 0, helmet_z],
+            COLORS["helmet_band"], 6, None, "helmet", "chassis")
 
-        # MAIN roll hoop: a curved tube arching above and behind the helmet.
-        hoop_x = cockpit_x - tire_r * 0.55
-        hoop_w = tub_w * 0.92
-        hoop_top = helmet_z + helmet_r * 0.9
-        main_hoop = [
-            [hoop_x, -hoop_w, tub_bot + hzz * 0.2],
-            [hoop_x, -hoop_w * 0.95, cz],
-            [hoop_x - tire_r * 0.1, -hoop_w * 0.55, hoop_top * 0.92],
-            [hoop_x - tire_r * 0.12, 0, hoop_top],
-            [hoop_x - tire_r * 0.1, hoop_w * 0.55, hoop_top * 0.92],
-            [hoop_x, hoop_w * 0.95, cz],
-            [hoop_x, hoop_w, tub_bot + hzz * 0.2],
-        ]
-        mh = _swept_tube(main_hoop, radius=tire_r * 0.07, n=10)
-        mesh(mh[0], mh[1], mh[2], mh[3], COLORS["hoop"], "Roll hoop",
-             "chassis", 0.95, "Main roll hoop")
-        # Rear hoop braces down to the tub.
-        for sgn in (-1, 1):
-            tb = _tube([hoop_x - tire_r * 0.1, sgn * hoop_w * 0.5, hoop_top * 0.92],
-                       [hoop_x - tire_r * 1.1, sgn * hoop_w * 0.4, tub_bot + hzz * 0.3],
-                       radius=tire_r * 0.045, n=8)
-            mesh(tb[0], tb[1], tb[2], tb[3], COLORS["frame"], "Roll hoop",
-                 "chassis", 0.95)
-
-        # FRONT hoop: smaller, ahead of the dash.
-        fh_x = cockpit_x + tire_r * 1.0
-        fh_top = tub_top + helmet_r * 0.2
-        front_hoop = [
-            [fh_x, -tub_w * 0.7, cz],
-            [fh_x, -tub_w * 0.5, fh_top],
-            [fh_x, 0, fh_top + helmet_r * 0.1],
-            [fh_x, tub_w * 0.5, fh_top],
-            [fh_x, tub_w * 0.7, cz],
-        ]
-        fhm = _swept_tube(front_hoop, radius=tire_r * 0.05, n=8)
-        mesh(fhm[0], fhm[1], fhm[2], fhm[3], COLORS["frame"], "Roll hoop",
-             "chassis", 0.95, "Front hoop")
 
     # ---- 3) aerodynamics: multi-element wings + endplates --------------- #
     #  FSAE-style: a wide multi-element FRONT wing low and ahead of the front
@@ -1469,7 +1494,7 @@ def influence_summary(vp, ledger, topology_label: str | None = None) -> list:
 
     ch = _iface(ledger, "chassis")
     cm = _g(ch, "mass_kg")
-    add("chassis", "live", ("%.1f kg monocoque" % cm) if cm else "monocoque (no mass declared)")
+    add("chassis", "live", ("%.1f kg space frame" % cm) if cm else "space frame (no mass declared)")
 
     if ledger is not None:
         try:
@@ -1702,8 +1727,8 @@ def suggest_part_geometry(vp, subsys: str, ledger=None) -> dict:
 # CG, etc. — so the user always sees their part in the context of a full car.
 SUBSYSTEM_CATALOG = [
     # key                display name                    draw-names this subsystem owns
-    ("chassis",          "Chassis",                      ["Monocoque", "Roll hoop", "Driver"]),
-    ("drivetrain",       "Drivetrain",                   ["Motor + inverter"]),
+    ("chassis",          "Chassis",                      ["Frame tube", "Main hoop", "Front hoop", "Driver"]),
+    ("drivetrain",       "Drivetrain",                   ["Engine + CVT"]),
     ("front-suspension", "Front Suspension + Steering",  ["Tire", "Upright", "Wheel hub",
                                                           "Upper wishbone", "Lower wishbone",
                                                           "Tie rod", "Pushrod", "Rocker",
@@ -1717,8 +1742,8 @@ SUBSYS_DISPLAY = {k: d for k, d, _dn in SUBSYSTEM_CATALOG}
 
 # Kept for the renderer's internal anchor/box lookups (per representative body).
 PART_CATALOG = [
-    ("monocoque",       "Monocoque",           "chassis",          False),
-    ("roll_hoop",       "Roll hoop",           "chassis",          False),
+    ("monocoque",       "Space frame",         "chassis",          False),
+    ("roll_hoop",       "Main hoop",           "chassis",          False),
     ("driver",          "Driver",              "chassis",          False),
     ("motor",           "Engine + CVT",        "drivetrain",       False),
     ("tire",            "Tire",                "front-suspension", True),
