@@ -95,7 +95,7 @@ st.markdown("""
 
 :root{
   --bg:#0b0d10; --panel:#13171c; --panel2:#171c22;
-  --line:#262d36; --ink:#e7ecf1; --dim:#8d99a6;
+  --line:#262d36; --ink:#f3f6f9; --dim:#c8d2dc;
   --amber:#ffb02e; --cyan:#37e0d0; --red:#ff5a52; --grid:#1d242c;
 }
 .stApp{ background:
