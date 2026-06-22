@@ -1,4 +1,4 @@
-# Elbee Racing Baja — rebase notes
+# KinematiK Baja — rebase notes
 
 This tool is a Baja-SAE rebase of **KinematiK**, an open-source FSAE-EV suspension
 & vehicle-dynamics studio by Frederik Thio (MIT licensed). The physics engine
@@ -9,7 +9,7 @@ by the test suite; what changed is everything Baja-specific.
 ## What was rebased
 
 **Subteams (one source of truth: `suspension/integration.py::TEAMS`).**
-The 8 FSAE-EV teams became Elbee's 5: **Drivetrain, Front Suspension + Steering,
+The 8 FSAE-EV teams became the Baja 5: **Drivetrain, Front Suspension + Steering,
 Rear Suspension, Chassis, Data Acquisition.** A `resolve_team()` alias map keeps
 old saved projects from crashing. This cascades into Team Fit, Weight & Handover,
 Lead Notes, Integration and the 3D model.
@@ -30,7 +30,7 @@ bolted-joint separation) is foregrounded.
   are engine/CVT/gearbox/logger; handover PDF shows a 12 V battery line.
 
 **Branding:** page title, headers, README, source-file headers, requirements —
-all Elbee Baja, attribution to the original author preserved under MIT.
+all KinematiK Baja, attribution to the original author preserved under MIT.
 
 ## Validation
 - `streamlit_app.py` boots clean via Streamlit AppTest: **0 exceptions.**

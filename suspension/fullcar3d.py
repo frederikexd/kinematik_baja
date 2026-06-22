@@ -59,7 +59,7 @@ COLORS = dict(
     wheel="#6f7d8c", tire="#15181c", tire_edge="#3a434c", rim="#23282e",
     # Matte-black tub with a hint of the photo's red/yellow livery accent.
     monocoque="#1d2024", nose="#23262b", livery="#d63a2f",
-    frame="#0d1013", hoop="#0d1013", helmet="#e9edf1", helmet_band="#d63a2f",
+    frame="#8893a0", hoop="#9aa6b4", helmet="#e9edf1", helmet_band="#d63a2f",
     halo="#10141a",
     wing="#202428", wing_edge="#3a414a", endplate="#16191d",
     sidepod="#23262b", radiator="#ff6b5a", inlet="#0e1216",
@@ -873,12 +873,12 @@ def build_full_car_figure(
     inner_y_r = tr / 2.0 - tire_width_mm - 40
 
     # ---- 2) chassis: Baja SAE tubular space frame (roll cage) ----------- #
-    #  Baja is an open tube-frame buggy (cf. the reference photo): a welded
-    #  4130 space frame — lower floor rails, a cockpit bay, a curved MAIN hoop
-    #  behind the driver's head, a front (A-pillar) hoop, lateral roof/floor
-    #  cross-members, diagonal side-impact (door) bars, and front/rear nodes
-    #  the suspension and engine hang off. NO body panels, NO pointed nosecone,
-    #  NO wings. The driver's helmet shows in the open cockpit.
+    #  An open tube-frame buggy matched to the reference photo: a welded 4130
+    #  space frame with a tall MAIN hoop and a FRONT (A-pillar) hoop joined by
+    #  roof bars and a windscreen diagonal, lower floor rails, kicked-up front
+    #  nose rails reaching out to the front suspension, rear engine-bay tubes,
+    #  side-impact bars and gussets — plus long coilover shocks at each corner.
+    #  NO body panels, NO nosecone, NO wings. Driver helmet in the open cockpit.
     #
     #  tub_w / tub_top / tub_bot / cz / hzz are still computed here because the
     #  cooling/powertrain/electrics sections downstream place bodies relative to
@@ -896,14 +896,17 @@ def build_full_car_figure(
         if _g(ch_it, "mass_kg"):
             hv += " · %.1f kg" % _g(ch_it, "mass_kg")
 
-        # Longitudinal stations of the frame (front bulkhead -> rear).
-        fb_x = x_front + tire_r * 1.30          # front bulkhead (feet)
-        dash_x = x_front - wb * 0.02            # front (dash) hoop
-        seat_x = x_front - wb * 0.30            # main hoop (behind seat)
-        rear_x = x_rear + tire_r * 0.10         # rear frame node
-        hw = tub_w                              # half-width of the frame
-        z0 = tub_bot                            # lower rail height
-        z1 = tub_top                            # upper rail / hoop shoulder
+        # Longitudinal stations of the frame (front nose -> rear engine bay).
+        nose_x = x_front + tire_r * 1.55         # front nose node (ahead of axle)
+        fb_x = x_front + tire_r * 0.55           # front bulkhead (feet/dash base)
+        dash_x = x_front - wb * 0.04             # front (A-pillar) hoop
+        seat_x = x_front - wb * 0.32             # main hoop (behind seat)
+        eng_x = x_rear - tire_r * 0.30           # engine-bay cross node
+        rear_x = x_rear + tire_r * 0.15          # rear frame node
+        hw = tub_w                               # half-width of the cockpit frame
+        nose_w = hw * 0.62                       # the nose narrows toward the front
+        z0 = tub_bot                             # lower rail height
+        z1 = tub_top                             # upper rail / hoop shoulder
 
         def frame_tube(p0, p1, r=None, name="Frame tube", hint=None):
             t = _tube(p0, p1, radius=(r or tube_r), n=10)
@@ -915,31 +918,30 @@ def build_full_car_figure(
             mesh(s[0], s[1], s[2], s[3], COLORS["frame"], "Frame node",
                  "chassis", 0.96)
 
-        # Lower floor rails (left & right), front bulkhead to rear node.
+        # ---- Lower floor rails: nose -> bulkhead -> main hoop -> rear ------
         for sgn in (-1, 1):
             y = sgn * hw
-            frame_tube([fb_x, y, z0], [seat_x, y, z0], hint=hv)
-            frame_tube([seat_x, y, z0], [rear_x, y, z0])
-        # Lower cross-members (front, mid, rear).
-        for xx in (fb_x, seat_x, rear_x):
+            yn = sgn * nose_w
+            frame_tube([nose_x, yn, z0 + hzz * 0.30], [fb_x, y, z0], hint=hv)  # kicked-up nose rail
+            frame_tube([fb_x, y, z0], [seat_x, y, z0])
+            frame_tube([seat_x, y, z0], [eng_x, y, z0])
+            frame_tube([eng_x, y, z0], [rear_x, sgn * hw * 0.82, z0 + hzz * 0.2])  # rear kick-up
+        # Lower cross-members.
+        frame_tube([nose_x, -nose_w, z0 + hzz * 0.30], [nose_x, nose_w, z0 + hzz * 0.30],
+                   r=tube_r * 0.85, name="Front nose tube")
+        for xx in (fb_x, seat_x, eng_x):
             frame_tube([xx, -hw, z0], [xx, hw, z0])
-        # Upper side rails along the cockpit (dash hoop shoulder -> main hoop).
-        for sgn in (-1, 1):
-            y = sgn * hw
-            frame_tube([dash_x, y, z1 * 0.86], [seat_x, y, z1 * 0.92])
-        # Diagonal side-impact (door) bars across the cockpit opening.
-        for sgn in (-1, 1):
-            y = sgn * hw
-            frame_tube([dash_x, y, z0], [seat_x, y, z1 * 0.7], r=tube_r * 0.9)
+        frame_tube([rear_x, -hw * 0.82, z0 + hzz * 0.2], [rear_x, hw * 0.82, z0 + hzz * 0.2],
+                   r=tube_r * 0.9, name="Rear cross tube")
 
-        # MAIN roll hoop: a tall curved tube arching above/behind the driver.
-        hoop_top = z1 + tire_r * 0.55
+        # ---- MAIN hoop: tall curved tube arching above/behind the driver --
+        hoop_top = z1 + tire_r * 0.62
         main_hoop = [
             [seat_x, -hw, z0],
             [seat_x, -hw, cz],
-            [seat_x - tire_r * 0.12, -hw * 0.6, hoop_top * 0.94],
-            [seat_x - tire_r * 0.15, 0, hoop_top],
-            [seat_x - tire_r * 0.12, hw * 0.6, hoop_top * 0.94],
+            [seat_x - tire_r * 0.10, -hw * 0.62, hoop_top * 0.95],
+            [seat_x - tire_r * 0.13, 0, hoop_top],
+            [seat_x - tire_r * 0.10, hw * 0.62, hoop_top * 0.95],
             [seat_x, hw, cz],
             [seat_x, hw, z0],
         ]
@@ -947,48 +949,108 @@ def build_full_car_figure(
         mesh(mh[0], mh[1], mh[2], mh[3], COLORS["hoop"], "Main hoop",
              "chassis", 0.96, "Main roll hoop")
 
-        # Rear bracing: main hoop shoulders down to the rear frame nodes.
-        for sgn in (-1, 1):
-            frame_tube([seat_x - tire_r * 0.12, sgn * hw * 0.6, hoop_top * 0.94],
-                       [rear_x, sgn * hw, z0], r=tube_r * 0.9,
-                       name="Rear brace")
-        # Roof cross tube tying the top of the main hoop laterally.
-        frame_tube([seat_x - tire_r * 0.15, -hw * 0.6, hoop_top * 0.94],
-                   [seat_x - tire_r * 0.15, hw * 0.6, hoop_top * 0.94],
-                   r=tube_r * 0.85)
-
-        # FRONT (dash / A-pillar) hoop, smaller, ahead of the cockpit.
-        fh_top = z1 + tire_r * 0.12
+        # ---- FRONT (A-pillar) hoop, ahead of the cockpit ------------------
+        fh_top = z1 + tire_r * 0.22
         front_hoop = [
             [dash_x, -hw, z0],
             [dash_x, -hw, cz],
-            [dash_x, -hw * 0.55, fh_top],
-            [dash_x, 0, fh_top + tire_r * 0.05],
-            [dash_x, hw * 0.55, fh_top],
+            [dash_x - tire_r * 0.04, -hw * 0.6, fh_top],
+            [dash_x - tire_r * 0.05, 0, fh_top + tire_r * 0.06],
+            [dash_x - tire_r * 0.04, hw * 0.6, fh_top],
             [dash_x, hw, cz],
             [dash_x, hw, z0],
         ]
-        fhm = _swept_tube(front_hoop, radius=tube_r * 0.92, n=9)
+        fhm = _swept_tube(front_hoop, radius=tube_r * 0.95, n=9)
         mesh(fhm[0], fhm[1], fhm[2], fhm[3], COLORS["frame"], "Front hoop",
              "chassis", 0.95, "Front (A-pillar) hoop")
 
-        # Front-bay tubes: dash hoop forward to the front bulkhead (feet box).
+        # ---- ROOF bars + windscreen diagonal: front hoop -> main hoop -----
+        for sgn in (-1, 1):
+            frame_tube([dash_x - tire_r * 0.04, sgn * hw * 0.6, fh_top],
+                       [seat_x - tire_r * 0.10, sgn * hw * 0.62, hoop_top * 0.95],
+                       r=tube_r * 0.92, name="Roof bar")
+        # Roof cross tube tying the two roof bars together near the top.
+        frame_tube([seat_x - tire_r * 0.13, -hw * 0.6, hoop_top * 0.95],
+                   [seat_x - tire_r * 0.13, hw * 0.6, hoop_top * 0.95],
+                   r=tube_r * 0.85, name="Roof cross tube")
+        # Upper side rails along the cockpit (A-pillar base -> main hoop).
         for sgn in (-1, 1):
             y = sgn * hw
-            frame_tube([dash_x, y, z0], [fb_x, y, z0])
-            frame_tube([dash_x, y, cz], [fb_x, y, z0 + hzz * 0.4],
+            frame_tube([dash_x, y, cz], [seat_x, y, cz], r=tube_r * 0.9)
+
+        # ---- Side-impact (door) bars + gusset diagonals -------------------
+        for sgn in (-1, 1):
+            y = sgn * hw
+            frame_tube([dash_x, y, z0 + hzz * 0.5], [seat_x, y, z0 + hzz * 0.5],
+                       r=tube_r * 0.85, name="Side-impact bar")
+            frame_tube([dash_x, y, z0], [seat_x, y, cz], r=tube_r * 0.78)  # X-diagonal a
+            frame_tube([dash_x, y, cz], [seat_x, y, z0], r=tube_r * 0.78)  # X-diagonal b
+
+        # ---- Rear engine-bay bracing: main hoop -> rear nodes -------------
+        for sgn in (-1, 1):
+            frame_tube([seat_x - tire_r * 0.10, sgn * hw * 0.62, hoop_top * 0.95],
+                       [rear_x, sgn * hw * 0.82, z0 + hzz * 0.2], r=tube_r * 0.9,
+                       name="Rear brace")
+            frame_tube([seat_x, y if False else sgn * hw, cz],
+                       [eng_x, sgn * hw, z0], r=tube_r * 0.8, name="Engine-bay tube")
+            frame_tube([eng_x, sgn * hw, z0], [rear_x, sgn * hw * 0.82, z0 + hzz * 0.2],
                        r=tube_r * 0.85)
+
+        # ---- Front-bay tubes: A-pillar -> bulkhead -> nose ----------------
+        for sgn in (-1, 1):
+            y = sgn * hw
+            yn = sgn * nose_w
+            frame_tube([dash_x, y, z0], [fb_x, y, z0])
+            frame_tube([dash_x, y, cz], [fb_x, y, z0 + hzz * 0.4], r=tube_r * 0.85)
+            frame_tube([fb_x, y, z0 + hzz * 0.4], [nose_x, yn, z0 + hzz * 0.30],
+                       r=tube_r * 0.82, name="Nose upper rail")
         frame_tube([fb_x, -hw, z0 + hzz * 0.4], [fb_x, hw, z0 + hzz * 0.4],
                    r=tube_r * 0.85, name="Front bulkhead")
-        # A couple of frame nodes where the suspension picks up loads read.
-        for xx in (fb_x, dash_x, seat_x, rear_x):
-            for sgn in (-1, 1):
-                frame_node([xx, sgn * hw, z0])
 
-        # Driver: a helmet sphere seated in the open cockpit.
+        # ---- Frame nodes at the main load pickups -------------------------
+        for xx in (fb_x, dash_x, seat_x, eng_x, rear_x):
+            wnode = hw if xx not in (rear_x,) else hw * 0.82
+            for sgn in (-1, 1):
+                frame_node([xx, sgn * wnode, z0 if xx != rear_x else z0 + hzz * 0.2])
+        for sgn in (-1, 1):
+            frame_node([nose_x, sgn * nose_w, z0 + hzz * 0.30])
+
+        # ---- Long coilover shocks at each corner (the photo's tall springs)
+        #  A near-vertical spring from a high inboard frame mount down to the
+        #  lower control-arm region at each corner. Drawn so it always reads as
+        #  an upright coilover regardless of the exact corner geometry.
+        def coilover(corner_x, corner_y):
+            top = np.array([corner_x, corner_y * 0.55, hoop_top * 0.72])
+            bot = np.array([corner_x, corner_y * 0.92, z0 + tire_r * 0.20])
+            axis = bot - top
+            length = float(np.linalg.norm(axis))
+            if length < 1e-6:
+                return
+            cv = _cylinder((top + bot) / 2, axis, radius=tube_r * 1.15,
+                           length=length, n=14)
+            mesh(cv[0], cv[1], cv[2], cv[3], COLORS["spring"], "Coilover",
+                 "front-suspension", 0.92, "Coilover spring/damper")
+
+        try:
+            fy = abs(float(front_corner["wheel_center"][1])) or (hw * 1.4)
+            ry = abs(float(rear_corner["wheel_center"][1])) or (hw * 1.4)
+            # clamp the lateral mount so a narrow test geometry still looks right
+            fy = _clamp(fy, hw * 1.1, hw * 2.2)
+            ry = _clamp(ry, hw * 1.1, hw * 2.2)
+            for sgn in (-1, 1):
+                coilover(dash_x, sgn * fy)
+                coilover(seat_x, sgn * ry)
+        except Exception:
+            pass  # corners may be absent in headless/edge cases; frame still draws
+
+        # ---- Seat back + driver helmet in the open cockpit ----------------
         cockpit_x = (dash_x + seat_x) / 2
+        # simple seat back panel just ahead of the main hoop
+        sv, si, sj, sk = _box(seat_x + tire_r * 0.10, 0, cz,
+                              tube_r * 1.5, hw * 1.3, hzz * 1.4)
+        mesh(sv, si, sj, sk, COLORS["nose"], "Seat", "chassis", 0.7, "Seat back")
         helmet_r = tub_w * 0.42
-        helmet_z = z1 + helmet_r * 0.35
+        helmet_z = z1 + helmet_r * 0.30
         hv_e = _sphere([cockpit_x, 0, helmet_z], helmet_r, n=16)
         mesh(hv_e[0], hv_e[1], hv_e[2], hv_e[3], COLORS["helmet"],
              "Driver", "chassis", 0.98, "Driver (helmet)")

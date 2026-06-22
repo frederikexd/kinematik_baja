@@ -1,13 +1,13 @@
 # ============================================================================
-#  Elbee Racing — Baja SAE suspension & vehicle-dynamics studio.
-#  Rebased for Elbee Racing from KinematiK by Frederik Thio (FSAE-EV, MIT).
+#  KinematiK Baja — Baja SAE suspension & vehicle-dynamics studio.
+#  Baja edition of KinematiK by Frederik Thio (FSAE-EV, MIT).
 #  Original engine © 2026 Frederik Thio; Baja rebase retains the MIT license.
 # ============================================================================
 
 """
 Multi-team integration: check ANY subteam's part against the chassis.
 
-This generalises the suspension chassis check so every Elbee subteam — aero,
+This generalises the suspension chassis check so every subteam — aero,
 brakes, cooling, data-acq, electrics, powertrain — can validate their part against
 the shared chassis before anyone manufactures. The workflow is identical no matter
 which team you're on:
@@ -38,9 +38,9 @@ import trimesh
 from dataclasses import dataclass
 
 
-# Elbee subteam registry — matches the Discord channels. Each team's parts get
+# Subteam registry — matches the Discord channels. Each team's parts get
 # tagged so a future packaging view can colour/group by team.
-#  Elbee Racing — Baja SAE subsystem teams.
+#  KinematiK Baja — Baja SAE subsystem teams.
 #
 #  Rebased from the original FSAE-EV team list. Baja SAE is a single-make
 #  combustion off-road buggy: there is no aero package, no cooling pack and no

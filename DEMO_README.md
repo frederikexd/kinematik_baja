@@ -1,4 +1,4 @@
-# Elbee Baja — Standalone Demo Build
+# KinematiK Baja — Standalone Demo Build
 
 This is the **Baja SAE** suspension & vehicle-dynamics studio, packaged to run on
 its own with **no Supabase / cloud connection**. Everything stays on the laptop.

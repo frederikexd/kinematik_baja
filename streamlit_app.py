@@ -1,18 +1,18 @@
 # ============================================================================
-#  Elbee Racing — Baja SAE suspension & vehicle-dynamics studio.
-#  Rebased for Elbee Racing from KinematiK by Frederik Thio (FSAE-EV, MIT).
+#  KinematiK Baja — Baja SAE suspension & vehicle-dynamics studio.
+#  Baja edition of KinematiK by Frederik Thio (FSAE-EV, MIT).
 #  Original engine © 2026 Frederik Thio; Baja rebase retains the MIT license.
 # ============================================================================
 
 """
-Elbee Racing Baja — suspension & vehicle-dynamics studio.
+KinematiK Baja — suspension & vehicle-dynamics studio.
 
 Edit hardpoints live for any suspension topology — double wishbone, MacPherson,
 multi-link, trailing/semi-trailing arm, solid axle, twist-beam, truck steer, or a
 free-form linkage — and watch the kinematics (camber gain, bump steer, caster,
 KPI, scrub) and the vehicle-level consequences (roll-centre migration, lateral
 load transfer, grip balance) update together. Rebased from KinematiK (FSAE-EV)
-for Elbee Racing Baja, with the suspension + steering durability that ends the
+for KinematiK Baja, with the suspension + steering durability that ends the
 team's runs year after year made the headline focus.
 
 Run:  streamlit run streamlit_app.py
@@ -81,7 +81,7 @@ def _cached_thermal_warmup(coeffs, fnomin, enable_mu, cold_pa,
         track_c=float(track_c), duration_s=float(duration_s), dt=float(dt))
 
 
-st.set_page_config(page_title="Elbee Baja · Suspension & Vehicle Dynamics Studio",
+st.set_page_config(page_title="KinematiK Baja · Suspension & Vehicle Dynamics Studio",
                    page_icon="◢", layout="wide",
                    initial_sidebar_state="expanded")
 
@@ -654,7 +654,7 @@ except Exception:
 #  Sidebar — geometry editor
 # --------------------------------------------------------------------------- #
 with st.sidebar:
-    st.markdown('<div class="brand"><span class="mark">◢ ELBEE BAJA</span></div>',
+    st.markdown('<div class="brand"><span class="mark">◢ KINEMATIK BAJA</span></div>',
                 unsafe_allow_html=True)
 
     _UNIT_LABELS = {"metric": "Metric (SI)", "us": "US / Imperial"}
@@ -908,7 +908,7 @@ if not solve_ok:
     st.warning("Some travel positions did not converge for this topology; "
                "results outside the converged band may be incomplete.")
 
-st.markdown('<div class="brand"><span class="mark">◢ ELBEE RACING · BAJA SAE</span>'
+st.markdown('<div class="brand"><span class="mark">◢ KINEMATIK · BAJA SAE</span>'
             f'<span class="sub">{_TOPO_LABELS.get(_topo, _topo)} · suspension &amp; steering durability studio</span></div>',
             unsafe_allow_html=True)
 
@@ -979,13 +979,13 @@ if not _mr_real:
 st.write("")
 with st.expander("👋 New here? Start here (30-second tour)", expanded=False):
     st.markdown("""
-**What this is:** the Elbee Racing Baja suspension &amp; vehicle-dynamics studio —
+**What this is:** the KinematiK Baja suspension &amp; vehicle-dynamics studio —
 an architecture-agnostic multibody platform plus a shared subteam workspace.
 It turns *any* suspension geometry into live kinematics and vehicle-level balance,
 runs grip / lap-time / durability analysis on top, and keeps a searchable record of
 *why* the team made its design decisions so that knowledge doesn't vanish at graduation.
 
-**Why this rebuild exists:** year after year the part that ends Elbee's runs is the
+**Why this rebuild exists:** year after year the part that ends the team's runs is the
 **suspension and steering** — bent tie rods, sheared rod-ends, bump-steer that fights
 the driver, and links that fail under the abuse an off-road course hands out. So the
 two front/rear suspension subteams are first-class owners here, the front corner
@@ -4036,7 +4036,7 @@ with tab5c:
 
 # ----------------------------- TAB 6 --------------------------------------- #
 with tab6:
-    st.markdown('<p class="hint">Any Elbee subteam: load the shared chassis once as '
+    st.markdown('<p class="hint">Any subteam: load the shared chassis once as '
                 'the reference, then load your part (caliper, radiator, battery box, '
                 'wing mount, ECU tray — anything). You get the same collision / tight / '
                 'clear verdict suspension gets. <b>We can\'t out-spend USC, so we '
@@ -4432,17 +4432,17 @@ with tab7:
     }
     md = project_mod.build_handover_markdown(store, geometry=geo)
     ec = st.columns(3)
-    ec[0].download_button("⬇ Handover (.md)", md, file_name="elbee_handover.md",
+    ec[0].download_button("⬇ Handover (.md)", md, file_name="kinematik_baja_handover.md",
                           mime="text/markdown", width='stretch')
     ec[1].download_button("⬇ Project data (.json)", store.as_json(),
                           file_name="project.json", mime="application/json",
                           width='stretch')
     try:
-        pdf_path = os.path.join(tempfile.gettempdir(), "elbee_handover.pdf")
+        pdf_path = os.path.join(tempfile.gettempdir(), "kinematik_baja_handover.pdf")
         project_mod.render_pdf(md, pdf_path)
         with open(pdf_path, "rb") as f:
             ec[2].download_button("⬇ Handover (.pdf)", f.read(),
-                                  file_name="elbee_handover.pdf",
+                                  file_name="kinematik_baja_handover.pdf",
                                   mime="application/pdf", width='stretch')
     except Exception as e:
         ec[2].markdown(f"<p class='hint'>PDF unavailable: {e}</p>", unsafe_allow_html=True)

@@ -1,11 +1,11 @@
 <!--
-  Elbee Racing — Baja SAE suspension & vehicle-dynamics studio.
-  Rebased for Elbee Racing from KinematiK by Frederik Thio (FSAE-EV, MIT).
+  KinematiK Baja — Baja SAE suspension & vehicle-dynamics studio.
+  Baja edition of KinematiK by Frederik Thio (FSAE-EV, MIT).
   Original engine © 2026 Frederik Thio; this Baja rebase retains the MIT license.
 -->
 
 ---
-title: Elbee Racing Baja
+title: KinematiK Baja
 emoji: 🏁
 colorFrom: yellow
 colorTo: gray
@@ -16,12 +16,12 @@ pinned: false
 license: mit
 ---
 
-# ◢ Elbee Racing · Baja SAE
+# ◢ KinematiK · Baja SAE
 
-**Suspension &amp; vehicle-dynamics studio for the Elbee Racing Baja car.**
-Rebased from KinematiK (an FSAE-EV double-wishbone tool) into a Baja-SAE platform: the same architecture-agnostic multibody kinematics engine — edit hardpoints live for *any* topology (double wishbone front, trailing / semi-trailing arm or multi-link rear, MacPherson, solid axle, twist-beam, steering linkage, or a free-form layout) and see the kinematics *and* the vehicle-level consequences update together, in the browser, for free — but reorganised around Elbee's five subteams and pointed at the part that ends Elbee's runs every year: the **suspension and steering**.
+**Suspension &amp; vehicle-dynamics studio for the KinematiK Baja car.**
+Rebased from KinematiK (an FSAE-EV double-wishbone tool) into a Baja-SAE platform: the same architecture-agnostic multibody kinematics engine — edit hardpoints live for *any* topology (double wishbone front, trailing / semi-trailing arm or multi-link rear, MacPherson, solid axle, twist-beam, steering linkage, or a free-form layout) and see the kinematics *and* the vehicle-level consequences update together, in the browser, for free — but reorganised around the team's five subteams and pointed at the part that ends the team's runs every year: the **suspension and steering**.
 
-**Why this version exists.** Year after year the failure that stops the Elbee Baja car is suspension and steering — bent tie rods, sheared rod-ends, bump-steer fighting the driver, links that don't survive the off-road abuse. So this rebase splits suspension into two first-class owners (**Front Suspension + Steering** and **Rear Suspension**), folds the steering into the front corner where it belongs, and puts the durability checks — member-deflection compliance, bump-steer over full travel, and the bolted-joint separation analysis — front and centre instead of buried.
+**Why this version exists.** Year after year the failure that stops the Baja car is suspension and steering — bent tie rods, sheared rod-ends, bump-steer fighting the driver, links that don't survive the off-road abuse. So this rebase splits suspension into two first-class owners (**Front Suspension + Steering** and **Rear Suspension**), folds the steering into the front corner where it belongs, and puts the durability checks — member-deflection compliance, bump-steer over full travel, and the bolted-joint separation analysis — front and centre instead of buried.
 
 **The five subteams:** Drivetrain (engine + CVT + gearbox), Front Suspension + Steering, Rear Suspension, Chassis, and Data Acquisition. Each owns its parts in the shared 3D buggy, the Team-Fit clearance check, the weight ledger, the lead-notes board and the integration ledger.
 
@@ -341,7 +341,7 @@ KinematiK closes that loop. It runs a real 3D constraint solver for the linkage 
   part (caliper, radiator, battery box, wing mount, ECU tray), get collision / tight /
   clear back with the worst point highlighted
 - Position parts in the shared frame with offset + rotation
-- Same workflow for every Elbee subteam — aero, brakes, cooling, data-acq, electrics,
+- Same workflow for every subteam — aero, brakes, cooling, data-acq, electrics,
   powertrain, suspension. The idea: a team that can't out-spend its rivals wins by not
   wasting parts on rework. Catch interference in CAD before the first cut.
 
