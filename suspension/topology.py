@@ -1,7 +1,7 @@
 # ============================================================================
-#  KinematiK Baja — Baja SAE suspension & vehicle-dynamics studio.
-#  Baja edition of KinematiK by Frederik Thio (FSAE-EV, MIT).
-#  Original engine © 2026 Frederik Thio; Baja rebase retains the MIT license.
+#  KinematiK — Formula SAE suspension & vehicle dynamics toolkit
+#  Created by Frederik Thio. Copyright (c) 2026 Frederik Thio.
+#  Open source. Original author: Frederik Thio, creator of KinematiK.
 # ============================================================================
 
 """
@@ -419,23 +419,29 @@ class Mechanism:
             # defining points must be resolvable now (free/ground/other-carried)
             body.freeze(get_point, carried)
 
-        # 3) freeze constraint static parameters
+        # 3) freeze constraint static parameters.
+        # NOTE: always recompute unconditionally — never guard on `is None`.
+        # If compile() is called a second time after point positions have been
+        # edited (e.g. by mechanism_with_overrides()), the stale values from the
+        # first compile() must be overwritten with the new geometry.  Guarding on
+        # `is None` was the original convergence bug: example() auto-compiled and
+        # froze the template lengths/radii; a subsequent compile() after hardpoint
+        # edits skipped every parameter that was already non-None, leaving the
+        # solver working against the template geometry instead of the user's.
         for c in self.constraints:
-            if isinstance(c, Link) and c.length is None:
+            if isinstance(c, Link):
                 c.length = float(np.linalg.norm(self.points[c.a].pos - self.points[c.b].pos))
             if isinstance(c, OnLine):
                 c._e1, c._e2 = c._frame()
-            if isinstance(c, InPlane) and c.offset is None:
+            if isinstance(c, InPlane):
                 n = _unit(np.asarray(c.normal, float))
                 c.offset = float(np.dot(self.points[c.p].pos - self.points[c.base].pos, n))
             if isinstance(c, Revolute):
                 v = self.points[c.p].pos - self.points[c.base].pos
-                if c.radius is None:
-                    c.radius = float(np.linalg.norm(v))
-                if c.offset is None:
-                    n = _unit(np.asarray(c.axis, float))
-                    c.offset = float(np.dot(v, n))
-            if isinstance(c, AxleRoll) and c.length is None:
+                c.radius = float(np.linalg.norm(v))
+                n = _unit(np.asarray(c.axis, float))
+                c.offset = float(np.dot(v, n))
+            if isinstance(c, AxleRoll):
                 c.length = float(np.linalg.norm(self.points[c.end_a].pos - self.points[c.end_b].pos))
 
         # 4) create / locate the driving + rack constraints
