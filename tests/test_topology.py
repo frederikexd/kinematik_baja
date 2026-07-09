@@ -54,21 +54,51 @@ def test_native_and_generic_roll_centre_agree():
 @pytest.mark.parametrize("name", [
     "double_wishbone", "macpherson_strut", "multilink",
     "trailing_arm", "semi_trailing_arm", "solid_axle", "twist_beam",
+    "truck_steer_linkage",
 ])
 def test_every_template_sweeps_and_converges(name):
     kin = GenericKinematics(T.example(name))
     states = kin.sweep(-25, 25, 11)
     assert len(states) == 11
-    # at least the central, well-conditioned portion must converge cleanly
-    central = states[3:8]
-    assert all(s.converged for s in central), f"{name} failed to converge near static"
-    # camber must be finite and monotone-ish (no solver branch jumps)
+    # every station must converge — a shipped template that only solves near
+    # static is not "working for that topology". (truck_steer_linkage regressed
+    # here before DriveAlong: its near-vertical kingpin DOF made the z-drive
+    # flip branches past ~+/-15 mm.)
+    assert all(s.converged for s in states), (
+        name, [round(s.travel, 1) for s in states if not s.converged])
+    # camber must be finite and free of solver branch jumps
     cambers = [s.camber for s in states if s.converged]
     assert all(np.isfinite(c) for c in cambers)
     assert max(cambers) - min(cambers) < 15.0, f"{name} camber jumped (branch flip?)"
 
 
-def test_trailing_arm_has_no_camber_gain():
+def test_truck_steer_linkage_is_pure_kingpin_steer():
+    """The heavy-truck steer axle's DOF is knuckle rotation about a near-vertical
+    kingpin, so sweeping 'travel' must steer the wheel (large toe change) while
+    holding camber nearly constant — and it must converge across the whole
+    range, which requires the non-vertical DriveAlong driver rather than a
+    z-drive."""
+    from suspension.topology import DriveAlong
+    m = T.example("truck_steer_linkage")
+    assert isinstance(m._drive, DriveAlong), "kingpin-steer DOF must drive along its true motion axis"
+    kin = GenericKinematics(m)
+    s = kin.sweep(-25, 25, 11)
+    assert all(x.converged for x in s)
+    toes = [x.toe for x in s]
+    cambers = [x.camber for x in s]
+    assert max(toes) - min(toes) > 8.0, "sweeping the DOF should steer the wheel"
+    assert max(cambers) - min(cambers) < 0.5, "kingpin steer should barely change camber"
+
+
+def test_drivealong_never_selected_for_vertical_dof_templates():
+    """Guard against the driver heuristic drifting: genuinely vertical-travel
+    architectures must keep the exact legacy z-drive so their kinematics are
+    unchanged."""
+    from suspension.topology import DriveZ
+    for name in ("double_wishbone", "macpherson_strut", "multilink",
+                 "trailing_arm", "semi_trailing_arm", "solid_axle", "twist_beam"):
+        m = T.example(name)
+        assert isinstance(m._drive, DriveZ), f"{name} should keep the vertical z-drive"
     """A pure trailing arm holds camber through travel — its defining trait."""
     kin = GenericKinematics(T.example("trailing_arm"))
     s = kin.sweep(-25, 25, 11)
