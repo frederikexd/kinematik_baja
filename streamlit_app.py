@@ -245,24 +245,68 @@ div[data-baseweb="input"] input{ background:var(--panel2)!important; color:var(-
 /* Radio / checkbox label text stays light */
 .stRadio label, .stCheckbox label{ color:var(--ink)!important; }
 
-/* --- Legibility: brighten muted/caption copy --------------------------- */
-/* Streamlit's native st.caption renders a very dark grey that is nearly
-   unreadable on this near-black background. Lift every caption, help/secondary
-   line, and the inline ".sub" labels to a brighter muted tone. This only
-   touches greyed body copy — accent colours (amber/cyan/red) are set with
-   their own vars and are unaffected. */
+/* --- Legibility: brighten every dark-grey text surface ----------------- */
+/* Streamlit's native muted greys (captions, slider ticks, placeholders,
+   disabled options, help text) render very dark on this near-black background
+   and are hard to read. Lift them all to one brighter muted tone. This targets
+   only greyed *text* — accent colours (amber/cyan/red) and structural greys
+   (borders, plot axes, 3D meshes) use their own vars/attributes and are
+   untouched. */
 :root{ --muted:#aeb9c4; }
-[data-testid="stCaptionContainer"],
-[data-testid="stCaptionContainer"] *,
+
+/* Captions, hints, inline sub-labels, small print */
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] *,
 .stCaption, .stCaption *,
-small, .help, .hint{
+small, .help, .hint, .sub{
   color:var(--muted)!important;
 }
-/* Inline mono sub-labels (e.g. "HARDPOINT EDITOR …", "Chassis pickups") */
-.sub{ color:var(--muted)!important; }
-/* Selectbox / widget help + secondary caption under inputs */
+
+/* Widget help "?" tooltips + secondary markdown small text */
 [data-testid="stWidgetLabelHelp"], [data-testid="stWidgetLabelHelp"] *,
+[data-testid="stTooltipIcon"], [data-testid="stTooltipIcon"] *,
 .stMarkdown small, div[data-testid="stMarkdownContainer"] small{
+  color:var(--muted)!important;
+}
+
+/* Slider min/max + tick labels, current-value ticks, number-input step hints */
+[data-testid="stSliderTickBarMin"], [data-testid="stSliderTickBarMax"],
+[data-testid="stTickBar"], [data-testid="stTickBar"] *,
+[data-testid="stSliderTickBar"] *,
+.stSlider [data-baseweb="slider"] div[role="slider"] + div{
+  color:var(--muted)!important;
+}
+
+/* Selectbox / multiselect placeholder + value text that renders muted */
+.stSelectbox div[data-baseweb="select"] div,
+.stMultiSelect div[data-baseweb="select"] div,
+[data-baseweb="select"] [class*="placeholder"],
+[role="option"], [role="listbox"] *{
+  color:var(--muted)!important;
+}
+/* keep the *selected* input value at full brightness (overrides the above) */
+.stSelectbox div[data-baseweb="select"] div[value],
+.stTextInput input, .stTextArea textarea, .stNumberInput input{
+  color:var(--ink)!important;
+}
+/* placeholders specifically stay muted */
+input::placeholder, textarea::placeholder{ color:var(--muted)!important; opacity:1; }
+
+/* Disabled widget labels/options (Streamlit dims these hard) */
+[data-testid] [disabled], .stSelectbox [aria-disabled="true"],
+[data-baseweb="menu"] [aria-disabled="true"]{
+  color:var(--muted)!important; opacity:1!important;
+}
+
+/* Expander header text + radio/checkbox helper captions */
+[data-testid="stExpander"] summary p,
+[data-testid="stExpander"] summary span,
+.stRadio [data-testid="stCaptionContainer"],
+.stCheckbox [data-testid="stCaptionContainer"]{
+  color:var(--muted)!important;
+}
+
+/* Unselected tab labels (were --dim; nudge to the brighter muted) */
+.stTabs [data-baseweb="tab"]:not([aria-selected="true"]){
   color:var(--muted)!important;
 }
 </style>
@@ -1367,7 +1411,7 @@ with tab_car:
     _car_slot = st.container()
 
     st.markdown('<p class="hint" style="margin:10px 0 2px;font-family:JetBrains Mono;'
-                'font-size:.7rem;letter-spacing:.12em;color:#6f7d8c;">PART TOOLS</p>',
+                'font-size:.7rem;letter-spacing:.12em;color:#aeb9c4;">PART TOOLS</p>',
                 unsafe_allow_html=True)
 
     # ===================================================================== #
@@ -2772,9 +2816,9 @@ def render_geometry_intake(store, geom):
         _out = " ".join(f"{_EMOJI[s]}{s}" for s in missing) or "none 🎉 every team is in"
         st.markdown(
             f'<div style="border-left:3px solid var(--line);padding:6px 12px;margin:2px 0 8px;">'
-            f'<span style="font-size:.84rem;color:#8d99a6;">entered:</span> '
+            f'<span style="font-size:.84rem;color:#aeb9c4;">entered:</span> '
             f'<span style="font-size:.86rem;">{_in}</span><br>'
-            f'<span style="font-size:.84rem;color:#8d99a6;">still needed:</span> '
+            f'<span style="font-size:.84rem;color:#aeb9c4;">still needed:</span> '
             f'<span style="font-size:.86rem;">{_out}</span></div>',
             unsafe_allow_html=True)
 
@@ -2967,9 +3011,9 @@ def render_manufacturing_readiness(geom):
         f'border-radius:8px;padding:12px 16px;margin:6px 0 10px;">'
         f'<span class="tag {_cls}" style="font-size:.95rem;">{_verdict}</span><br>'
         f'<span style="font-size:.95rem;line-height:1.45;">{_line}</span>'
-        + (f'<br><span style="font-size:.86rem;color:#8d99a6;line-height:1.4;">{_conf}</span>'
+        + (f'<br><span style="font-size:.86rem;color:#aeb9c4;line-height:1.4;">{_conf}</span>'
            if _conf else "")
-        + (f'<br><span style="font-size:.86rem;color:#8d99a6;line-height:1.4;">{_scope}</span>'
+        + (f'<br><span style="font-size:.86rem;color:#aeb9c4;line-height:1.4;">{_scope}</span>'
            if _scope else "")
         + '</div>', unsafe_allow_html=True)
 
@@ -3001,7 +3045,7 @@ def render_manufacturing_readiness(geom):
             st.markdown(
                 f'<div style="border-left:3px solid var(--line);padding:6px 12px;margin:4px 0;">'
                 f'<span class="tag {tag_cls}">{tag_txt}</span> {conf_chip} '
-                f'&nbsp;<span style="color:#8d99a6;font-size:.8rem">{who}</span><br>'
+                f'&nbsp;<span style="color:#aeb9c4;font-size:.8rem">{who}</span><br>'
                 f'<span style="font-size:.92rem">{f.message}</span></div>',
                 unsafe_allow_html=True)
 
@@ -3072,8 +3116,8 @@ def render_mountpoint_clash():
             kc[0].markdown(
                 f'<div style="border-left:3px solid var(--line);padding:4px 10px;margin:3px 0;">'
                 f'{_MP_EMOJI.get(ko.owner_subsystem,"")} <b>{name}</b> '
-                f'<span style="color:#8d99a6;font-size:.8rem">{ko.owner_subsystem}{est}</span><br>'
-                f'<span style="font-size:.82rem;color:#8d99a6">'
+                f'<span style="color:#aeb9c4;font-size:.8rem">{ko.owner_subsystem}{est}</span><br>'
+                f'<span style="font-size:.82rem;color:#aeb9c4">'
                 f'{tuple(round(v) for v in ko.lo_mm)} → {tuple(round(v) for v in ko.hi_mm)} mm</span></div>',
                 unsafe_allow_html=True)
             if kc[1].button("✕", key=f"ko_del_{name}"):
@@ -3108,9 +3152,9 @@ def render_mountpoint_clash():
             pc[0].markdown(
                 f'<div style="border-left:3px solid var(--line);padding:4px 10px;margin:3px 0;">'
                 f'{_MP_EMOJI.get(mp.owner_subsystem,"")} <b>{name}</b> '
-                f'<span style="color:#8d99a6;font-size:.8rem">{mp.owner_subsystem} '
+                f'<span style="color:#aeb9c4;font-size:.8rem">{mp.owner_subsystem} '
                 f'→ {mp.mounts_on}{est}</span><br>'
-                f'<span style="font-size:.82rem;color:#8d99a6">'
+                f'<span style="font-size:.82rem;color:#aeb9c4">'
                 f'{tuple(round(v) for v in mp.xyz_mm)} mm · clr {mp.min_clearance_mm:.0f}</span></div>',
                 unsafe_allow_html=True)
             if pc[1].button("✕", key=f"mp_del_{name}"):
@@ -3159,7 +3203,7 @@ def render_mountpoint_clash():
                 f'<p class="hint">{res.summary()}</p>'
                 f'<div style="border-left:3px solid var(--line);padding:6px 12px;margin:4px 0;">'
                 f'<span class="tag {_vcls}">{_vtxt}</span> '
-                f'<span style="font-size:.86rem;color:#8d99a6">after this move '
+                f'<span style="font-size:.86rem;color:#aeb9c4">after this move '
                 f'(whole-car verdict — see the readiness board up top for the full '
                 f'open-items list)</span></div>',
                 unsafe_allow_html=True)
@@ -3185,7 +3229,7 @@ def render_mountpoint_clash():
         st.markdown(
             f'<div style="border-left:3px solid var(--line);padding:6px 12px;margin:4px 0;">'
             f'<span class="tag">EMPTY</span> '
-            f'<span style="font-size:.92rem;color:#8d99a6">{_msg}</span></div>',
+            f'<span style="font-size:.92rem;color:#aeb9c4">{_msg}</span></div>',
             unsafe_allow_html=True)
     _SEV_CLS = {"fail": "bad", "warning": "warn", "missing": "warn",
                 "info": "", "ok": "good"}
@@ -3196,7 +3240,7 @@ def render_mountpoint_clash():
         st.markdown(
             f'<div style="border-left:3px solid var(--line);padding:6px 12px;margin:4px 0;">'
             f'<span class="tag {cls}">{f.severity.value.upper()}</span> '
-            f'<b>{f.check}</b> &nbsp;<span style="color:#8d99a6;font-size:.8rem">{who}</span><br>'
+            f'<b>{f.check}</b> &nbsp;<span style="color:#aeb9c4;font-size:.8rem">{who}</span><br>'
             f'<span style="font-size:.92rem">{f.message}</span></div>',
             unsafe_allow_html=True)
 
@@ -3282,8 +3326,8 @@ def render_pcb_board():
             row[0].markdown(
                 f'<div style="border-left:3px solid var(--line);padding:4px 10px;margin:3px 0;">'
                 f'{_MP_EMOJI.get(tr.owner_subsystem,"")} <b>{name}</b> '
-                f'<span style="color:#8d99a6;font-size:.8rem">{tr.owner_subsystem} → {tr.feeds}{est}</span><br>'
-                f'<span style="font-size:.82rem;color:#8d99a6">'
+                f'<span style="color:#aeb9c4;font-size:.8rem">{tr.owner_subsystem} → {tr.feeds}{est}</span><br>'
+                f'<span style="font-size:.82rem;color:#aeb9c4">'
                 f'{tr.width_mm:.2f} mm · {tr.copper_oz:.0f} oz · {tr.length_mm:.0f} mm · '
                 f'fuses @ {tr.fusing_current_a(ambient_c=board.ambient_c):.1f} A</span></div>',
                 unsafe_allow_html=True)
@@ -3317,8 +3361,8 @@ def render_pcb_board():
             row[0].markdown(
                 f'<div style="border-left:3px solid var(--line);padding:4px 10px;margin:3px 0;">'
                 f'{_MP_EMOJI.get(dp.owner_subsystem,"")} <b>{name}</b> '
-                f'<span style="color:#8d99a6;font-size:.8rem">{dp.owner_subsystem}{est}</span><br>'
-                f'<span style="font-size:.82rem;color:#8d99a6">'
+                f'<span style="color:#aeb9c4;font-size:.8rem">{dp.owner_subsystem}{est}</span><br>'
+                f'<span style="font-size:.82rem;color:#aeb9c4">'
                 f'~{z:.0f} Ω diff (est) · target {dp.target_z0_ohm:.0f} Ω · {len(dp.path_mm)} pts</span></div>',
                 unsafe_allow_html=True)
             if row[1].button("✕", key=f"dp_del_{name}"):
@@ -3347,8 +3391,8 @@ def render_pcb_board():
             row[0].markdown(
                 f'<div style="border-left:3px solid var(--line);padding:4px 10px;margin:3px 0;">'
                 f'{_MP_EMOJI.get(ag.owner_subsystem,"")} <b>{name}</b> '
-                f'<span style="color:#8d99a6;font-size:.8rem">{ag.owner_subsystem} · {ag.net}{est}</span><br>'
-                f'<span style="font-size:.82rem;color:#8d99a6">'
+                f'<span style="color:#aeb9c4;font-size:.8rem">{ag.owner_subsystem} · {ag.net}{est}</span><br>'
+                f'<span style="font-size:.82rem;color:#aeb9c4">'
                 f'{ag.sw_voltage_v:.0f} V · {ag.edge_v_per_ns:.0f} V/ns · {len(ag.path_mm)} pts</span></div>',
                 unsafe_allow_html=True)
             if row[1].button("✕", key=f"ag_del_{name}"):
@@ -3406,7 +3450,7 @@ def render_pcb_board():
         st.markdown(
             f'<div style="border-left:3px solid var(--line);padding:6px 12px;margin:4px 0;">'
             f'<span class="tag {cls}">{f.severity.value.upper()}</span> '
-            f'<b>{f.check}</b> &nbsp;<span style="color:#8d99a6;font-size:.8rem">{who}</span><br>'
+            f'<b>{f.check}</b> &nbsp;<span style="color:#aeb9c4;font-size:.8rem">{who}</span><br>'
             f'<span style="font-size:.92rem">{f.message}</span></div>',
             unsafe_allow_html=True)
 
@@ -3589,9 +3633,9 @@ def render_harness():
             row[0].markdown(
                 f'<div style="border-left:3px solid var(--line);padding:4px 10px;margin:3px 0;">'
                 f'{_MP_EMOJI.get(c.owner_subsystem,"")} <b>{name}</b> '
-                f'<span style="color:#8d99a6;font-size:.8rem">{c.owner_subsystem} · '
+                f'<span style="color:#aeb9c4;font-size:.8rem">{c.owner_subsystem} · '
                 f'{c.part_number or "—"}{est}</span><br>'
-                f'<span style="font-size:.82rem;color:#8d99a6">'
+                f'<span style="font-size:.82rem;color:#aeb9c4">'
                 f'({c.xyz_mm[0]:.0f}, {c.xyz_mm[1]:.0f}, {c.xyz_mm[2]:.0f}) mm · '
                 f'{c.cavities} cav · {mtxt} · SR {c.strain_relief_mm:.0f} mm</span></div>',
                 unsafe_allow_html=True)
@@ -3643,9 +3687,9 @@ def render_harness():
             row[0].markdown(
                 f'<div style="border-left:3px solid var(--line);padding:4px 10px;margin:3px 0;">'
                 f'{_MP_EMOJI.get(w.owner_subsystem,"")} <b>{name}</b> '
-                f'<span style="color:#8d99a6;font-size:.8rem">AWG{w.gauge_awg} · '
+                f'<span style="color:#aeb9c4;font-size:.8rem">AWG{w.gauge_awg} · '
                 f'{w.net or "—"}{est}</span><br>'
-                f'<span style="font-size:.82rem;color:#8d99a6">'
+                f'<span style="font-size:.82rem;color:#aeb9c4">'
                 f'{w.from_conn or "?"} → {w.to_conn or "?"} · '
                 f'cut {w.cut_length_mm():.0f} mm · {w.copper_mass_g():.1f} g Cu · '
                 f'min bend {w.min_bend_radius_mm:.0f} mm</span></div>',
@@ -3670,7 +3714,7 @@ def render_harness():
         st.markdown(
             f'<div style="border-left:3px solid var(--line);padding:6px 12px;margin:4px 0;">'
             f'<span class="tag {cls}">{f.severity.value.upper()}</span> '
-            f'<b>{f.check}</b> &nbsp;<span style="color:#8d99a6;font-size:.8rem">{who}</span><br>'
+            f'<b>{f.check}</b> &nbsp;<span style="color:#aeb9c4;font-size:.8rem">{who}</span><br>'
             f'<span style="font-size:.92rem">{f.message}</span></div>',
             unsafe_allow_html=True)
 
@@ -3715,7 +3759,7 @@ def render_harness():
             f'<div style="border-left:3px solid var(--line);padding:6px 12px;margin:3px 0;">'
             f'<span style="font-size:.95rem"><b>{md.get("total_copper_g",0):.1f} g</b> '
             f'copper · <b>{md.get("total_harness_g",0):.1f} g</b> total harness</span><br>'
-            f'<span style="font-size:.85rem;color:#8d99a6">harness CG: '
+            f'<span style="font-size:.85rem;color:#aeb9c4">harness CG: '
             f'{md.get("harness_cg_mm")} mm (x rearward, y right, z up)</span></div>',
             unsafe_allow_html=True)
         if md.get("connectors_without_declared_mass"):
@@ -5571,7 +5615,7 @@ with tab12:
                          f"<td style='padding:4px 10px;text-align:right'>{epct}</td>"
                          f"<td style='padding:4px 10px'><span class='tag {cls}'>{c.verdict}</span></td></tr>")
             return ("<table style='width:100%;border-collapse:collapse;font-size:.92rem;'>"
-                    "<tr style='color:#8d99a6;font-size:.8rem'>"
+                    "<tr style='color:#aeb9c4;font-size:.8rem'>"
                     "<td style='padding:4px 10px'>channel</td>"
                     "<td style='padding:4px 10px;text-align:right'>measured</td>"
                     "<td style='padding:4px 10px;text-align:right'>predicted</td>"
@@ -6080,7 +6124,7 @@ with tab12:
                                 f"<td style='padding:4px 10px;text-align:right'>{p.cd_phys:.3f} / {p.cd_cfd:.3f}</td>"
                                 f"<td style='padding:4px 10px;text-align:right'><span class='tag {cls_cd}'>{cde:+.1f}%</span></td></tr>")
                         table = ("<table style='width:100%;border-collapse:collapse;font-size:.9rem;'>"
-                                 "<tr style='color:#8d99a6;font-size:.8rem'>"
+                                 "<tr style='color:#aeb9c4;font-size:.8rem'>"
                                  "<td style='padding:4px 10px'>ride heights</td>"
                                  "<td style='padding:4px 10px;text-align:right'>C_l phys/CFD</td>"
                                  "<td style='padding:4px 10px;text-align:right'>C_l err</td>"
@@ -6332,7 +6376,7 @@ if _show_ledger:
         st.markdown(
             f'<div style="border-left:3px solid var(--line);padding:6px 12px;margin:4px 0;">'
             f'<span class="tag {cls}">{f.severity.value.upper()}</span> '
-            f'<b>{f.check}</b> &nbsp;<span style="color:#8d99a6;font-size:.8rem">{who}</span><br>'
+            f'<b>{f.check}</b> &nbsp;<span style="color:#aeb9c4;font-size:.8rem">{who}</span><br>'
             f'<span style="font-size:.92rem">{f.message}</span></div>',
             unsafe_allow_html=True)
 
@@ -6381,7 +6425,7 @@ if _show_ledger:
             why = f" — <i>{e['why']}</i>" if e.get("why") else ""
             st.markdown(f'<div style="font-size:.86rem;color:#c9d3dd;padding:2px 0;">'
                         f'<b>{EMOJI.get(e["subsystem"],"")}{e["subsystem"]}</b> '
-                        f'<span style="color:#8d99a6">{e["when"]} · {e["by"]}</span>: '
+                        f'<span style="color:#aeb9c4">{e["when"]} · {e["by"]}</span>: '
                         f'{"; ".join(e["changes"])}{why}</div>', unsafe_allow_html=True)
         pcols = st.columns([1, 1, 2])
         if pcols[0].button("✓ Commit to handover record", width='stretch'):
