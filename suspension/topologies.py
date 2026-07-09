@@ -393,9 +393,15 @@ def truck_steer_linkage(
     b.revolute("sp", "kpb", kp_axis)           # 2 eqns
     b.revolute("sa", "kpb", kp_axis)           # 2 eqns
     b.link("sp", "sa", "knuckle_rigid")        # 1 eqn  -> 5 of 6 fixed, 1 DOF
+    # NOTE: steer_point is intentionally omitted. On this topology the driving
+    # DOF *is* the steer (the knuckle's rotation about the kingpin), so 'travel'
+    # already sweeps steer angle for Ackermann/bump-steer study. Wiring a
+    # separate RackTranslation onto the (ground) tie-rod-inner point would add a
+    # phantom, disconnected DOF that only makes the solve inconsistent, so it is
+    # left off — the steering input is the drive coordinate.
     return b.finish(carrier="knuckle", wheel_center="wc", contact_patch="cp",
                     drive_point="sa", static_camber=static_camber,
-                    static_toe=static_toe, steer_point="tri", label=label,
+                    static_toe=static_toe, label=label,
                     meta={"family": "beam-axle-steer", "steered": True,
                           "drive_is_steer": True,
                           "note": "1-DOF kingpin steer; 'travel' selects steer angle"})

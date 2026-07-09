@@ -15,7 +15,7 @@ from . import topology
 from . import topologies
 from .topology import (
     Point, Body, Constraint, Link, Coincident, OnLine, InPlane, Revolute,
-    DriveZ, RackTranslation, AxleRoll, Mechanism, MechanismBuilder,
+    DriveZ, DriveAlong, RackTranslation, AxleRoll, Mechanism, MechanismBuilder,
 )
 from .topologies import (
     double_wishbone, macpherson_strut, multilink, trailing_arm,
@@ -164,7 +164,7 @@ __all__ = [
     # architecture-agnostic topology engine
     "topology", "topologies", "GenericKinematics",
     "Point", "Body", "Constraint", "Link", "Coincident", "OnLine", "InPlane",
-    "Revolute", "DriveZ", "RackTranslation", "AxleRoll", "Mechanism",
+    "Revolute", "DriveZ", "DriveAlong", "RackTranslation", "AxleRoll", "Mechanism",
     "MechanismBuilder",
     "double_wishbone", "macpherson_strut", "multilink", "trailing_arm",
     "semi_trailing_arm", "solid_axle", "twist_beam", "truck_steer_linkage",

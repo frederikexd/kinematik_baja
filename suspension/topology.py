@@ -319,6 +319,36 @@ class DriveZ(Constraint):
 
 
 @dataclass
+class DriveAlong(Constraint):
+    """Driving constraint for topologies whose DOF is *not* wheel-vertical.
+
+    Pins the projection of the drive point onto a fixed unit ``axis`` to
+    ``s0 + travel``, i.e. it advances the point ``travel`` millimetres along the
+    mechanism's true instantaneous direction of motion rather than always along
+    +z. This is what lets a near-vertical hinge (heavy-truck kingpin steer, or a
+    strut that travels along its own axis) sweep without the ill-conditioned
+    z-drive forcing huge rotations and flipping solver branches.
+
+    ``axis`` is frozen once at compile() from a small symmetric probe of where
+    the drive point actually moves, so a single ``travel`` coordinate marches
+    the genuine DOF for *any* architecture. One equation — identical DOF count
+    to DriveZ, so it is a drop-in replacement that keeps every square 1-DOF
+    template exactly determined."""
+    p: str = ""
+    origin: np.ndarray | None = None      # drive point's static position
+    axis: np.ndarray | None = None        # unit motion direction
+    travel: float = 0.0
+
+    def __post_init__(self):
+        self.n_eq = 1
+
+    def residual(self, ctx):
+        d = _unit(np.asarray(self.axis, float))
+        s = np.dot(ctx.P(self.p) - np.asarray(self.origin, float), d)
+        return np.array([s - self.travel])
+
+
+@dataclass
 class RackTranslation(Constraint):
     """Steering DOF: hold the inner tie/track-rod point at its static position
     plus a lateral rack displacement ``delta`` along ``axis`` (default +y). Lets
@@ -395,9 +425,10 @@ class Mechanism:
 
     # ---- internal solve bookkeeping (filled by compile()) -------------- #
     _free_names: list = field(default=None, repr=False)
-    _drive: DriveZ | None = field(default=None, repr=False)
+    _drive: "DriveZ | DriveAlong | None" = field(default=None, repr=False)
     _rack: RackTranslation | None = field(default=None, repr=False)
     _spin_local: np.ndarray | None = field(default=None, repr=False)
+    _free_static: np.ndarray | None = field(default=None, repr=False)
     _compiled: bool = field(default=False, repr=False)
 
     # =================================================================== #
@@ -444,20 +475,9 @@ class Mechanism:
             if isinstance(c, AxleRoll):
                 c.length = float(np.linalg.norm(self.points[c.end_a].pos - self.points[c.end_b].pos))
 
-        # 4) create / locate the driving + rack constraints
-        self._drive = DriveZ(p=self.drive_point, z0=float(self.points[self.drive_point].pos[2]))
-        self.constraints = [c for c in self.constraints if not isinstance(c, DriveZ)]
-        self.constraints.append(self._drive)
-
-        if self.steer_point is not None:
-            self._rack = RackTranslation(
-                p=self.steer_point,
-                base_pos=self.points[self.steer_point].pos.copy(),
-                axis=self.steer_axis if self.steer_axis is not None else np.array([0, 1, 0.]))
-            self.constraints = [c for c in self.constraints if not isinstance(c, RackTranslation)]
-            self.constraints.append(self._rack)
-
-        # 5) freeze the wheel spin axis in the carrier-local frame
+        # 4) freeze the wheel spin axis in the carrier-local frame. This must
+        # happen BEFORE the drive-axis probe below, because the probe calls
+        # solve(), and solve() needs a frozen spin axis to report a pose.
         body = self.bodies[self.carrier_body]
         R0, o0 = body._R0, body._o0
         if self.spin_axis_pts is not None:
@@ -468,8 +488,121 @@ class Mechanism:
             toe = np.radians(self.static_toe)
             spin0 = _unit(np.array([np.sin(toe), np.cos(toe) * np.cos(cam), -np.sin(cam)]))
         self._spin_local = R0.T @ spin0
+
+        # 5) create / locate the driving + rack constraints.
+        #
+        # The DOF the sweep marches is "wheel travel", which for almost every
+        # architecture is genuine wheel-vertical motion, so the default driver
+        # pins the drive point's z (DriveZ). But some architectures have a DOF
+        # that is *not* vertical — a heavy-truck knuckle rotating about a nearly
+        # vertical kingpin, or a strut travelling along its own inclined axis.
+        # For those, pinning z forces the mechanism through huge rotations to
+        # buy a little z, which is ill-conditioned and flips solver branches
+        # partway through a sweep. So we probe where the drive point *actually*
+        # moves for a small travel and, if that direction is far from vertical,
+        # drive along it instead (DriveAlong). Vertical-DOF templates are
+        # unaffected: their probe direction is ~+z, so DriveZ is kept and the
+        # numbers are bit-for-bit what they were.
+        drive_pos0 = self.points[self.drive_point].pos.copy()
+        self._rack = None  # rack must be inactive during the probe
+        self.constraints = [c for c in self.constraints
+                            if not isinstance(c, (DriveZ, DriveAlong))]
+        self._drive = DriveZ(p=self.drive_point, z0=float(drive_pos0[2]))
+        self.constraints.append(self._drive)
+        self._compiled = True  # let solve() run during the probe
+
+        drive_axis = self._probe_drive_axis()
+
+        # Restore the drive point / free state after probing, then install the
+        # chosen driver.
+        self._compiled = False
+        self.points[self.drive_point].pos = drive_pos0
+        self.constraints = [c for c in self.constraints
+                            if not isinstance(c, (DriveZ, DriveAlong))]
+        if drive_axis is None:
+            # probe failed (degenerate) — fall back to the historical z-drive.
+            self._drive = DriveZ(p=self.drive_point, z0=float(drive_pos0[2]))
+        elif abs(drive_axis[2]) >= 0.5:
+            # DOF is predominantly vertical: keep the exact legacy z-drive so
+            # every existing template's kinematics are unchanged.
+            self._drive = DriveZ(p=self.drive_point, z0=float(drive_pos0[2]))
+        else:
+            # DOF is predominantly non-vertical: march along the real motion
+            # direction. Orient the axis so +travel keeps its conventional sense
+            # (a positive z-component where any exists, else +y).
+            ax = drive_axis.copy()
+            if ax[2] < 0 or (abs(ax[2]) < 1e-9 and ax[1] < 0):
+                ax = -ax
+            self._drive = DriveAlong(p=self.drive_point,
+                                     origin=drive_pos0.copy(), axis=ax)
+        self.constraints.append(self._drive)
+
+        if self.steer_point is not None:
+            self._rack = RackTranslation(
+                p=self.steer_point,
+                base_pos=self.points[self.steer_point].pos.copy(),
+                axis=self.steer_axis if self.steer_axis is not None else np.array([0, 1, 0.]))
+            self.constraints = [c for c in self.constraints if not isinstance(c, RackTranslation)]
+            self.constraints.append(self._rack)
+
+        # 6) snapshot the static (rest-pose) free-vector: the cold-start seed the
+        # solver falls back to when a warm start fails near a travel limit.
+        self._free_static = self._get_free().copy()
         self._compiled = True
         return self
+
+    def _get_free_static(self):
+        """Static rest-pose free-vector, for cold-start retries. Falls back to
+        the current free-vector if compile() hasn't snapshotted one yet."""
+        if self._free_static is not None:
+            return self._free_static.copy()
+        return self._get_free()
+
+    # ------------------------------------------------------------------- #
+    def _probe_drive_axis(self, eps: float = 0.5):
+        """Return the unit direction the drive point actually moves for a small
+        symmetric z-probe, or None if the motion is degenerate. Used at compile
+        time to pick between a vertical (DriveZ) and a general (DriveAlong)
+        driver so any topology — including non-vertical-DOF ones — sweeps
+        stably. Leaves the free state restored to static on exit.
+
+        The probe drives z by a tiny +/-eps and measures the drive point's
+        displacement. Even for a near-vertical hinge, where z is a poor DOF, a
+        small step is well within the convergent basin, so the *direction* it
+        recovers is reliable even though a large z-drive would not converge.
+        """
+        # First seat the mechanism into a valid assembled pose at travel 0. The
+        # builder hands us raw hardpoints that are not yet a solved assembly, so
+        # probing straight from them can fail to converge (and wrongly fall back
+        # to the vertical driver). Solving static once puts the free points on
+        # the constraint manifold, giving a clean basin to probe from.
+        try:
+            seated = self.solve(0.0, seed=self._get_free())
+            if not seated["converged"]:
+                self._set_free(self._get_free()); self._refresh_carried()
+                return None
+        except Exception:
+            return None
+        q_static = self._get_free()
+        try:
+            r_plus = self.solve(+eps, seed=q_static)
+            p_plus = r_plus["positions"][self.drive_point].copy()
+            ok_plus = r_plus["converged"]
+            r_minus = self.solve(-eps, seed=q_static)
+            p_minus = r_minus["positions"][self.drive_point].copy()
+            ok_minus = r_minus["converged"]
+        except Exception:
+            self._set_free(q_static); self._refresh_carried()
+            return None
+        # restore static state for the rest of compile()
+        self._set_free(q_static); self._refresh_carried()
+        if not (ok_plus and ok_minus):
+            return None
+        d = p_plus - p_minus
+        nd = float(np.linalg.norm(d))
+        if nd < 1e-9:
+            return None
+        return d / nd
 
     # ------------------------------------------------------------------- #
     def _refresh_carried(self):
@@ -528,8 +661,27 @@ class Mechanism:
         n_res = self._residuals(q0).size
         n_unk = q0.size
         method = "lm" if n_res >= n_unk else "trf"
-        sol = least_squares(self._residuals, q0, method=method,
-                            max_nfev=600, xtol=1e-12, ftol=1e-12)
+
+        def _run(seed_vec):
+            s = least_squares(self._residuals, seed_vec, method=method,
+                              max_nfev=600, xtol=1e-12, ftol=1e-12)
+            r = float(np.max(np.abs(s.fun))) if s.fun.size else 0.0
+            return s, r
+
+        sol, max_resid = _run(q0)
+        # A warm start (seed from the neighbouring travel) keeps the solver on
+        # one branch, which is what we want *when it converges*. But near a
+        # topology's travel limits a slightly-off neighbour can seed the solver
+        # into a worse basin than the static pose would — the chained sweep then
+        # fails a step that solves cleanly on its own. So if a *seeded* solve
+        # doesn't converge, retry cold from the static free-vector before giving
+        # up. This is a pure safety net: it only ever runs on an otherwise-failed
+        # step, so it cannot change any result that already converged.
+        if seed is not None and max_resid >= 0.1:
+            cold = self._get_free_static()
+            sol2, r2 = _run(cold)
+            if r2 < max_resid:
+                sol, max_resid = sol2, r2
         self._set_free(sol.x)
         self._refresh_carried()
         max_resid = float(np.max(np.abs(sol.fun))) if sol.fun.size else 0.0
