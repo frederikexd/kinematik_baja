@@ -244,6 +244,27 @@ div[data-baseweb="input"] input{ background:var(--panel2)!important; color:var(-
 }
 /* Radio / checkbox label text stays light */
 .stRadio label, .stCheckbox label{ color:var(--ink)!important; }
+
+/* --- Legibility: brighten muted/caption copy --------------------------- */
+/* Streamlit's native st.caption renders a very dark grey that is nearly
+   unreadable on this near-black background. Lift every caption, help/secondary
+   line, and the inline ".sub" labels to a brighter muted tone. This only
+   touches greyed body copy — accent colours (amber/cyan/red) are set with
+   their own vars and are unaffected. */
+:root{ --muted:#aeb9c4; }
+[data-testid="stCaptionContainer"],
+[data-testid="stCaptionContainer"] *,
+.stCaption, .stCaption *,
+small, .help, .hint{
+  color:var(--muted)!important;
+}
+/* Inline mono sub-labels (e.g. "HARDPOINT EDITOR …", "Chassis pickups") */
+.sub{ color:var(--muted)!important; }
+/* Selectbox / widget help + secondary caption under inputs */
+[data-testid="stWidgetLabelHelp"], [data-testid="stWidgetLabelHelp"] *,
+.stMarkdown small, div[data-testid="stMarkdownContainer"] small{
+  color:var(--muted)!important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -702,7 +723,7 @@ with st.sidebar:
         st.caption("Agnostic engine · this topology drives the same RC / anti-dive / "
                    "balance pipeline as the wishbone path.")
 
-    st.markdown(f'<div class="sub" style="color:#8d99a6;font-family:JetBrains Mono;font-size:.7rem;letter-spacing:.18em;margin-bottom:.6rem;">HARDPOINT EDITOR · {_U_LEN} · SAE x-rear y-right z-up</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sub" style="color:#aeb9c4;font-family:JetBrains Mono;font-size:.7rem;letter-spacing:.18em;margin-bottom:.6rem;">HARDPOINT EDITOR · {_U_LEN} · SAE x-rear y-right z-up</div>', unsafe_allow_html=True)
 
     _is_wishbone = (topo_choice == "double_wishbone")
 
